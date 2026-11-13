@@ -30,3 +30,5 @@
 - SRT 与 WebVTT 共用剪后时间验证，FileIO 保存到系统授权 URI。WebVTT 实际文件已核对 UTF-8 和时码。[集成报告](INTEGRATION_REPORT.md)
 
 阶段 06 字幕写入使用 SDK 26 @ohos.util.d.ts 的 TextEncoder.create / encodeInto，导出循环按 UTF-8 字节写入并核对最终长度。[API 参考](https://developer.huawei.com/consumer/en/doc/harmonyos-references/js-apis-util/)
+
+阶段 07 增加启动期沙箱临时文件恢复。2026-11-13 核对 SDK 26 @ohos.file.fs.d.ts 的 listFile、lstat、Stat.isFile 和 unlink，API 26 真机复测。[华为 FileIO 参考](https://developer.huawei.com/consumer/en/doc/harmonyos-references/js-apis-file-fs/)

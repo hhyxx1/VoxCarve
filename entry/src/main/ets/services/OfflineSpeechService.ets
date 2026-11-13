@@ -71,6 +71,7 @@ function runSession(engine: speechRecognizer.SpeechRecognitionEngine, session: s
           if (settled) {
             return;
           }
+          checkpoint();
           if (data.byteLength !== size) {
             fail('SPEECH_INPUT_TRUNCATED');
             return;
@@ -78,11 +79,13 @@ function runSession(engine: speechRecognizer.SpeechRecognitionEngine, session: s
           const packet = new Uint8Array(CHUNK_BYTES);
           packet.set(new Uint8Array(data));
           engine.writeAudio(session, packet);
+          if (position + size >= length) {
+            sent = true;
+          }
           await new Promise<void>((resume) => { setTimeout(resume, 20); });
         }
         if (!settled) {
           checkpoint();
-          sent = true;
           engine.finish(session);
         }
       } catch (error) {
@@ -114,6 +117,12 @@ function runSession(engine: speechRecognizer.SpeechRecognitionEngine, session: s
         },
         onComplete: (id: string, _message: string): void => {
           if (id === session && !settled) {
+            try {
+              checkpoint();
+            } catch (_) {
+              fail('TASK_CANCELLED');
+              return;
+            }
             if (!sent && !clauses.length) {
               fail('SPEECH_EARLY_COMPLETION');
               return;

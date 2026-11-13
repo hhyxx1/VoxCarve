@@ -1,0 +1,16 @@
+2026-11-13 | MIA-AL00 | HarmonyOS 7.0.0.109 | API 26 | baseline 98351f5 + stage 07 fixes
+ℹ tests 15
+ℹ pass 15
+ℹ fail 0
+> hvigor [32mFinished :entry:default@SignHap... after 3 s 126 ms [39m
+> hvigor [32mBUILD SUCCESSFUL in 20 s 31 ms [39m
+CodeLinter TypeScript/Correctness/Security recommended: exit 0, []
+[Info]App install path:C:\Project\VoxCarve\.artifacts/stage07/voxcarve-release-signed.hap msg:install bundle successfully.
+Observed '播放完成' [67,916][309,1007]
+Observed '本地项目' [67,422][446,533]
+No orphan render after restart
+7ae6a3240a1ebabe6a1e8221add599107370ee0189bd048f635881e669ea54a2  /data/app/el2/100/base/com.hhyxx.voxcarve/haps/entry/files/project-1.wav
+11-13 14:09:54.946 43106 43106 I A01000/com.hhyxx.voxcarve/VoxCarveRecovery: Removed temporary media files: 1
+Observed '任务已取消' [67,1265][353,1356]
+Cancelled session left no transcript draft.
+Signed Release HAP SHA-256 A75EBD90AD0255446701F70CC00422B62D065081C606FCF341B0A57219DCCDAD
