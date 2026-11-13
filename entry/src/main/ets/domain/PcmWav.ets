@@ -14,7 +14,8 @@ export interface PcmPeak {
 export type ReadBytes = (offset: number, length: number) => Promise<ArrayBuffer>;
 
 async function readExact(read: ReadBytes, offset: number, length: number): Promise<DataView> {
-  const bytes = await read(offset, length);
+  const pending: Promise<ArrayBuffer> = read(offset, length);
+  const bytes = await pending;
   if (bytes.byteLength !== length) {
     throw new Error('INVALID_WAV');
   }

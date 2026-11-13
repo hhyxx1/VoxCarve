@@ -10,3 +10,6 @@ HarmonyOS 7 · API 26 · 原生 Stage 工程。创建本地项目后，可在剪
 - [领域架构](docs/dev/ARCHITECTURE.md) · [UI 组件](docs/dev/UI_COMPONENTS.md) · [导航](docs/dev/NAVIGATION.md)
 - [SDK 声明与官方 API 审计](docs/dev/API_AUDIT.md)
 - [功能矩阵](docs/dev/IMPLEMENTATION_MATRIX.md) · [风险及测试样本](docs/dev/RISKS.md)
+
+- [阶段 06 验收](docs/dev/ACCEPTANCE_REPORT.md) · [发布就绪](docs/dev/RELEASE_READINESS.md)
+- 真机复验使用 API 26 MIA-AL00。配置本机 DevEco 签名后，按环境文档构建，选 uildMode=release 生成签名包，并用 hdc install -r 安装对应 HAP。

@@ -1,0 +1,10 @@
+# 声剪阶段 06 · 发布就绪审查
+
+当前可交付为 API 26 设备测试包。商店发布门槛尚未满足。
+
+- 本地候选包名 com.hhyxx.voxcarve，versionName 1.0.0、versionCode 1000000。AGC 注册记录和版本策略尚未核定。
+- 已用用户的本地签名配置生成 Debug 与 Release HAP。签名 Release 已在 MIA-AL00 安装运行。商店分发证书与正式发行流程尚未核定。
+- MP3/MP4 与音画同步、录音、持久任务队列、工程删除、资产和缓存清理、无障碍与兼容性矩阵仍有缺口，详见验收矩阵。
+- 商店上架、账号登录、AGC 注册、公开仓库和隐私政策发布需要用户明确授权。此次执行本地 QA。
+
+[验收矩阵](ACCEPTANCE_REPORT.md) · [安全复核](SECURITY_REVIEW.md) · [测试环境和构建命令](ENVIRONMENT.md)

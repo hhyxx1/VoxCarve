@@ -1,0 +1,41 @@
+2026-11-13 | MIA-AL00 | HarmonyOS 7.0.0.109 | API 26 | source baseline 3488b3d + stage 06 fixes
+Node --test tests/*.test.mjs: exit 0
+ℹ tests 14
+ℹ pass 14
+ℹ fail 0
+hvigorw.js assembleHap --mode module -p module=entry@default -p product=default -p buildMode=debug --no-daemon : exit 0
+> hvigor [32mFinished :entry:default@SignHap... after 3 s 190 ms [39m
+> hvigor [32mBUILD SUCCESSFUL in 19 s 323 ms [39m
+hvigorw.js assembleHap --mode module -p module=entry@default -p product=default -p buildMode=release --no-daemon : exit 0
+> hvigor [32mFinished :entry:default@SignHap... after 2 s 866 ms [39m
+> hvigor [32mBUILD SUCCESSFUL in 18 s 55 ms [39m
+CodeLinter TypeScript/Correctness/Security recommended: initial await-thenable errors 2; final result []
+Long WAV import, scan, cut, export and restart:
+Observed '音轨已导入' [67,1302][353,1393]
+Observed '44100 Hz · 1 声道 · 原始 1800.000 秒 · 剪后 1800.000 秒' [67,1144][1097,1262]
+e408a1aeb83d23eb54e54507bb027c16e7acb6339e7bfcabbfa55316a9f26eda  /storage/media/100/local/files/Docs/Download/VoxCarve-QA-30min.wav
+e408a1aeb83d23eb54e54507bb027c16e7acb6339e7bfcabbfa55316a9f26eda  /data/app/el2/100/base/com.hhyxx.voxcarve/haps/entry/files/project-3.wav
+Observed '900000.000–901000.000 毫秒' [114,1377][859,1440]
+Scan observation including UI polling: 31.6565133 seconds
+Observed '900000' [67,1392][1157,1554]
+Observed '901000' [67,1677][1157,1839]
+Observed '44100 Hz · 1 声道 · 原始 1800.000 秒 · 剪后 1.000 秒' [67,1152][1097,1270]
+Observed '已导出 WAV · 88244 字节' [67,1068][639,1159]
+FileTransfer finish, Size:88244, File count = 1, time:28ms rate:3151.57kB/s
+Observed '44100 Hz · 1 声道 · 原始 1800.000 秒 · 剪后 1.000 秒' [67,1152][1097,1270]
+Observed '任务已取消' [67,1337][353,1428]
+After cancellation and force-stop, reopened Stage06-Long-QA: original 1800.000 s, edited 1.000 s
+Observed '44100 Hz · 1 声道 · 原始 1800.000 秒 · 剪后 1.000 秒' [67,1152][1097,1270]
+Observed '无法导入此文件，请检查文件是否完整并重试。' [134,1177][1046,1295]
+Observed '暂无音轨' [134,633][405,712]
+no-published-asset
+Observed '中文校验' [67,648][1157,810]
+Observed '字幕已保存' [67,1223][353,1314]
+Observed '已导出 VTT' [67,1223][357,1314]
+UTF-8 WebVTT exact match: 52 bytes
+hidumper --mem single long-project snapshot: Total PSS 79093 kB
+VoxCarve-QA-30min.wav: 158760044 bytes, SHA-256 e408a1aeb83d23eb54e54507bb027c16e7acb6339e7bfcabbfa55316a9f26eda
+stage06-long-cut.wav: 88244 bytes, SHA-256 3fa20276d8a4131431490ed129d0b05fafa4e9c82d4339b5cf635512103d6615
+44100 output frames match source PCM [900, 901) seconds exactly.
+voxcarve-debug-signed.hap SHA-256 B95C392BFCB9379C8320DB6623288E03CB0B7186BE422C270AFC8C8ED981A5CE
+voxcarve-release-signed.hap SHA-256 3217A4EF1EE84DB48BFA2EEC215780D09E5C4F6FDE0EBD614DBDADE3A154DA3B

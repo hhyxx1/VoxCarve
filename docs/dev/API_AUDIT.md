@@ -28,3 +28,5 @@
 
 - Core Speech Kit 文件模式已真机收到普通话草稿。SDK 26 声明约束为 PCM16、16 kHz、单声道，writeAudio 每包 640 或 1280 字节，短语音最多 60 秒。本实现监听实际完成状态，提前结束时提示部分草稿。人工核对与时间绑定继续可用。[文件语音指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/speechrecognizer-guide/)
 - SRT 与 WebVTT 共用剪后时间验证，FileIO 保存到系统授权 URI。WebVTT 实际文件已核对 UTF-8 和时码。[集成报告](INTEGRATION_REPORT.md)
+
+阶段 06 字幕写入使用 SDK 26 @ohos.util.d.ts 的 TextEncoder.create / encodeInto，导出循环按 UTF-8 字节写入并核对最终长度。[API 参考](https://developer.huawei.com/consumer/en/doc/harmonyos-references/js-apis-util/)

@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import { util } from '@kit.ArkTS';
 import { fileIo, picker } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
 import { EditGraph } from '../domain/EditGraph';
@@ -74,8 +75,18 @@ export class LocalAudioService {
     return async (offset: number, length: number): Promise<ArrayBuffer> => {
       const buffer = new ArrayBuffer(length);
       fileIo.lseek(fd, offset);
-      const bytes = await fileIo.read(fd, buffer);
-      return bytes === length ? buffer : buffer.slice(0, bytes);
+      let received = await fileIo.read(fd, buffer);
+      const view = new Uint8Array(buffer);
+      while (received > 0 && received < length) {
+        const tail = new ArrayBuffer(length - received);
+        const bytes = await fileIo.read(fd, tail);
+        if (bytes === 0) {
+          break;
+        }
+        view.set(new Uint8Array(tail, 0, bytes), received);
+        received += bytes;
+      }
+      return received === length ? buffer : buffer.slice(0, received);
     };
   }
 
@@ -192,7 +203,8 @@ export class LocalAudioService {
     while (offset < end) {
       checkpoint?.();
       const length = Math.min(262144, end - offset);
-      const block = await read(offset, length);
+      const pending: Promise<ArrayBuffer> = read(offset, length);
+      const block = await pending;
       if (block.byteLength !== length) {
         throw new Error('INCOMPLETE_READ');
       }
@@ -209,17 +221,22 @@ export class LocalAudioService {
   }
 
   async saveCaptionText(id: number, content: string, format: 'srt' | 'vtt' = 'srt'): Promise<boolean> {
+    if (!content || /[\uD800-\uDFFF]/u.test(content)) {
+      throw new Error('INVALID_SUBTITLE_TEXT');
+    }
+    const encoded = util.TextEncoder.create('utf-8').encodeInto(content);
+    const buffer = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
     const uri = await this.chooseSaveUri('voxcarve-captions-' + id + '.' + format);
     if (!uri) {
       return false;
     }
     const target = await fileIo.open(uri, fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
     try {
-      const bytes = await fileIo.write(target.fd, content);
-      if (bytes <= 0 || (await fileIo.stat(target.fd)).size !== bytes) {
+      await this.writeBlock(target.fd, buffer);
+      await fileIo.fsync(target.fd);
+      if ((await fileIo.stat(target.fd)).size !== buffer.byteLength) {
         throw new Error('INCOMPLETE_EXPORT');
       }
-      await fileIo.fsync(target.fd);
       return true;
     } finally {
       await fileIo.close(target);

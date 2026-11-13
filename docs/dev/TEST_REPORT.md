@@ -31,3 +31,7 @@ $ide = 'C:\Program Files\Huawei\DevEco Studio'
 - 新增 `components/{XuzuoTheme,XuzuoControls,NavigationShell,AudioEditorPanes}.ets`、`pages/SdkProbePanel.ets`。更新 `pages/Index.ets` 的工作区导航和项目流程。
 - 更新 `AppScope/app.json5`，新增 `AppScope/resources/base/profile/configuration.json`。更新 `entry/src/main/resources/{base,dark}/element/color.json`。
 - 新增 `tests/domain.test.mjs`、本报告、阶段 02 日志、架构、组件及导航文档。更新 README、CURRENT_STATE、API_AUDIT 和 IMPLEMENTATION_MATRIX。
+
+## 阶段 06
+
+见 [验收矩阵](ACCEPTANCE_REPORT.md)、[性能](PERFORMANCE.md)、[安全](SECURITY_REVIEW.md) 和 [发布审查](RELEASE_READINESS.md)。
