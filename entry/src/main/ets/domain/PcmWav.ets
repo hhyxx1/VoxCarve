@@ -133,3 +133,48 @@ export function makeWavHeader(sampleRate: number, channels: number, frames: numb
   header.setUint32(40, bytes, true);
   return header.buffer;
 }
+
+export interface PcmFrameRange {
+  readonly startFrame: number;
+  readonly endFrame: number;
+}
+
+export async function detectQuietRanges(read: ReadBytes, track: PcmWavTrack, minimumMs: number): Promise<PcmFrameRange[]> {
+  const windowFrames = Math.round(track.sampleRate / 50);
+  const minimumFrames = Math.ceil(track.sampleRate * minimumMs / 1000);
+  const thresholdSquared = Math.pow(32768 * Math.pow(10, -45 / 20), 2);
+  const ranges: PcmFrameRange[] = [];
+  let quietStart = -1;
+  for (let first = 0; first < track.frameCount;) {
+    const frameCount = Math.min(windowFrames * 32, track.frameCount - first);
+    const block = await readExact(read, track.dataOffset + first * track.blockAlign, frameCount * track.blockAlign);
+    for (let frame = 0; frame < frameCount; frame += windowFrames) {
+      const samples = Math.min(windowFrames, frameCount - frame);
+      let maxPower = 0;
+      for (let channel = 0; channel < track.channels; channel++) {
+        let sum = 0;
+        for (let index = 0; index < samples; index++) {
+          const value = block.getInt16((frame + index) * track.blockAlign + channel * 2, true);
+          sum += value * value;
+        }
+        maxPower = Math.max(maxPower, sum / samples);
+      }
+      const position = first + frame;
+      if (maxPower <= thresholdSquared) {
+        if (quietStart < 0) {
+          quietStart = position;
+        }
+      } else if (quietStart >= 0) {
+        if (position - quietStart >= minimumFrames) {
+          ranges.push({ startFrame: quietStart, endFrame: position });
+        }
+        quietStart = -1;
+      }
+    }
+    first += frameCount;
+  }
+  if (quietStart >= 0 && track.frameCount - quietStart >= minimumFrames) {
+    ranges.push({ startFrame: quietStart, endFrame: track.frameCount });
+  }
+  return ranges;
+}

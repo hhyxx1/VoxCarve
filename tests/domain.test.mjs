@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { registerHooks, stripTypeScriptTypes } from 'node:module';
 import { test } from 'node:test';
 
 registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith('./') && context.parentURL?.endsWith('.ets')) {
+      const candidate = new URL(specifier + '.ets', context.parentURL);
+      if (existsSync(candidate)) {
+        return { url: candidate.href, shortCircuit: true };
+      }
+    }
+    return nextResolve(specifier, context);
+  },
   load(url, context, nextLoad) {
     if (url.endsWith('.ets')) {
       return {
@@ -19,6 +28,17 @@ registerHooks({
 const domain = '../entry/src/main/ets/domain/';
 const { EditGraph, frameToTimeUs, timeUsToFrame } = await import(domain + 'EditGraph.ets');
 const { RenderTask, TaskStatus } = await import(domain + 'RenderTask.ets');
+const { mapSourceRange, parseTimeRange } = await import(domain + 'TimeRange.ets');
+
+test('caption projection collapses removed samples and excludes completely removed speech', () => {
+  const sequence = new EditGraph(48000, 96000).remove('pause', 24000, 48000, 1).render('audio');
+  assert.deepEqual(mapSourceRange({ startUs: 250000, endUs: 1250000 }, sequence),
+    { startUs: 250000, endUs: 750000 });
+  assert.equal(mapSourceRange({ startUs: 500000, endUs: 1000000 }, sequence), undefined);
+  assert.deepEqual(parseTimeRange('12.345', '500', 500000), { startUs: 12345, endUs: 500000 });
+  assert.throws(() => parseTimeRange('0x10', '500', 500000), /INVALID_TIME_RANGE/);
+  assert.throws(() => parseTimeRange('500', '501', 500000), /INVALID_TIME_RANGE/);
+});
 
 test('adjacent output slices meet exactly after overlapping source removals', () => {
   const graph = new EditGraph(48000, 48000);
@@ -80,4 +100,15 @@ test('retaining a source interval is reversible and respects existing removals',
   ]);
   assert.equal(retained.undo().render('pcm').totalFrames, 36000);
   assert.equal(retained.redo().render('pcm').totalFrames, 18000);
+});
+
+test('SRT sorts captions, rounds to output milliseconds, and rejects ambiguous overlaps', async () => {
+  const { encodeSrt } = await import(domain + 'TimeRange.ets');
+  const first = { id: 'first', outputStartUs: 0, outputEndUs: 200000, text: '第一句' };
+  const second = { id: 'second', outputStartUs: 200000, outputEndUs: 450000, text: '第二句' };
+  assert.equal(encodeSrt([second, first], 450000),
+    '1\r\n00:00:00,000 --> 00:00:00,200\r\n第一句\r\n\r\n' +
+    '2\r\n00:00:00,200 --> 00:00:00,450\r\n第二句\r\n\r\n');
+  assert.throws(() => encodeSrt([first, { ...second, outputStartUs: 199999 }], 450000), /INVALID_CAPTIONS/);
+  assert.throws(() => encodeSrt([{ ...second, outputEndUs: 450001 }], 450000), /INVALID_CAPTIONS/);
 });

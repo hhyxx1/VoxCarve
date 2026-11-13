@@ -6,11 +6,15 @@ import { LocalAudioService, OpenAudio } from '../services/LocalAudioService';
 import { ActionButton, ErrorPanel, StatusChip, TaskProgress, TextFieldRow } from './XuzuoControls';
 import { WaveformPane } from './AudioEditorPanes';
 import { XuzuoTheme } from './XuzuoTheme';
+import { parseTimeRange, TimeRange } from '../domain/TimeRange';
 
 @Component
 export struct AudioWorkspace {
   @Prop project?: MediaProject = undefined;
+  @Prop importOnly: boolean = false;
+  @Prop initialRange?: TimeRange = undefined;
   repository?: ProjectRepository;
+  imported: () => void = () => {};
   @State private audio?: OpenAudio = undefined;
   @State private graph?: EditGraph = undefined;
   @State private startText: string = '0';
@@ -64,7 +68,10 @@ export struct AudioWorkspace {
   private setAudio(source: OpenAudio, saved?: EditGraph): void {
     this.graph = saved ?? new EditGraph(source.track.sampleRate, source.track.frameCount);
     this.audio = source;
-    this.updateSelection(0, source.track.frameCount);
+    const range = this.initialRange;
+    const rate = source.track.sampleRate;
+    this.updateSelection(range ? Math.min(source.track.frameCount, timeUsToFrame(range.startUs, rate)) : 0,
+      range ? Math.min(source.track.frameCount, timeUsToFrame(range.endUs, rate)) : source.track.frameCount);
   }
 
   private async choose(): Promise<void> {
@@ -79,6 +86,7 @@ export struct AudioWorkspace {
       if (source) {
         this.setAudio(source);
         this.feedback = '音轨已导入';
+        this.imported();
       }
     } catch (error) {
       const message = (error as Error).message;
@@ -114,13 +122,9 @@ export struct AudioWorkspace {
       } else if (mode === 'redo') {
         next = graph.redo();
       } else {
-        const startUs = Math.round(Number(this.startText) * 1000);
-        const endUs = Math.round(Number(this.endText) * 1000);
-        if (!this.startText.trim() || !this.endText.trim()) {
-          throw new RangeError('INVALID_RANGE');
-        }
-        const start = timeUsToFrame(startUs, graph.sampleRate);
-        const end = timeUsToFrame(endUs, graph.sampleRate);
+        const range = parseTimeRange(this.startText, this.endText, frameToTimeUs(graph.sourceFrameCount, graph.sampleRate));
+        const start = timeUsToFrame(range.startUs, graph.sampleRate);
+        const end = timeUsToFrame(range.endUs, graph.sampleRate);
         const now = Date.now();
         const id = now.toString() + '-' + graph.snapshot().cursor;
         next = mode === 'retain' ? graph.retain(id, start, end, now) : graph.remove(id, start, end, now);
@@ -164,12 +168,18 @@ export struct AudioWorkspace {
     }
     this.issue = '';
     this.feedback = '';
-    this.taskLabel = mode === 'source' ? '准备试听' : '渲染剪辑音频';
+    this.taskLabel = mode === 'source' ? '准备试听' : '渲染音频';
     let temporary: string | undefined;
     try {
       await this.stopPlayback();
       if (mode !== 'source') {
-        temporary = await this.service.render(this.project.id, this.audio.track, this.graph);
+        let graph = this.graph;
+        if (mode === 'selection') {
+          const range = parseTimeRange(this.startText, this.endText, frameToTimeUs(graph.sourceFrameCount, graph.sampleRate));
+          graph = new EditGraph(graph.sampleRate, graph.sourceFrameCount).retain('preview',
+            timeUsToFrame(range.startUs, graph.sampleRate), timeUsToFrame(range.endUs, graph.sampleRate), Date.now());
+        }
+        temporary = await this.service.render(this.project.id, this.audio.track, graph);
       }
       if (mode === 'save' && temporary) {
         const bytes = await this.service.save(temporary, this.project.id);
@@ -188,8 +198,10 @@ export struct AudioWorkspace {
         }
       }
     } catch (error) {
-      this.issue = (error as Error).message === 'EMPTY_RENDER' ? '当前没有可输出的音频帧，请先撤销或调整剪切。' :
-        '音频处理失败，请重试。';
+      const code = (error as Error).message;
+      this.issue = code === 'EMPTY_RENDER' ? '当前没有可输出的音频帧，请先撤销或调整剪切。' :
+        code === 'INVALID_TIME_RANGE' || code === 'INVALID_EDIT_RANGE' ?
+          '请选择音轨范围内的有效起止时间。' : '音频处理失败，请重试。';
       await this.stopPlayback();
     } finally {
       if (temporary && temporary !== this.renderPath) {
@@ -235,28 +247,33 @@ export struct AudioWorkspace {
       }
       if (this.audio && this.graph) {
         Text(this.trackSummary()).fontSize(15).fontColor(XuzuoTheme.textSecondary)
-        TextFieldRow({ label: '开始时间（毫秒）', fieldValue: this.startText,
-          update: (text: string) => { this.startText = text } })
-        TextFieldRow({ label: '结束时间（毫秒）', fieldValue: this.endText,
-          update: (text: string) => { this.endText = text } })
-        Row({ space: 8 }) {
-          ActionButton({ label: '删除选区', available: !this.taskLabel, action: () => { this.edit('remove') } })
-          ActionButton({ label: '保留选区', available: !this.taskLabel, action: () => { this.edit('retain') } })
-        }
-        Row({ space: 8 }) {
-          ActionButton({ label: '撤销', available: !this.taskLabel && this.canUndo(), action: () => { this.edit('undo') } })
-          ActionButton({ label: '重做', available: !this.taskLabel && this.canRedo(), action: () => { this.edit('redo') } })
-        }
-        Column({ space: 8 }) {
+        if (!this.importOnly) {
+          TextFieldRow({ label: '开始时间（毫秒）', fieldValue: this.startText,
+            update: (text: string) => { this.startText = text } })
+          TextFieldRow({ label: '结束时间（毫秒）', fieldValue: this.endText,
+            update: (text: string) => { this.endText = text } })
           Row({ space: 8 }) {
-            ActionButton({ label: '试听原音', available: !this.taskLabel, action: () => { this.output('source') } })
-            ActionButton({ label: '试听剪后', available: !this.taskLabel, action: () => { this.output('preview') } })
+            ActionButton({ label: '删除选区', available: !this.taskLabel, action: () => { this.edit('remove') } })
+            ActionButton({ label: '保留选区', available: !this.taskLabel, action: () => { this.edit('retain') } })
           }
-          ActionButton({ label: '停止', available: !this.taskLabel, action: () => { this.stopPlayback() } })
+          Row({ space: 8 }) {
+            ActionButton({ label: '撤销', available: !this.taskLabel && this.canUndo(), action: () => { this.edit('undo') } })
+            ActionButton({ label: '重做', available: !this.taskLabel && this.canRedo(), action: () => { this.edit('redo') } })
+          }
+          Column({ space: 8 }) {
+            Row({ space: 8 }) {
+              ActionButton({ label: '试听原音', available: !this.taskLabel, action: () => { this.output('source') } })
+              ActionButton({ label: '试听选区', available: !this.taskLabel, action: () => { this.output('selection') } })
+            }
+            Row({ space: 8 }) {
+              ActionButton({ label: '试听剪后', available: !this.taskLabel, action: () => { this.output('preview') } })
+              ActionButton({ label: '停止', available: !this.taskLabel, action: () => { this.stopPlayback() } })
+            }
+          }
+          .alignItems(HorizontalAlign.Start)
+          ActionButton({ label: '导出 WAV', variant: 'primary', available: !this.taskLabel,
+            action: () => { this.output('save') } })
         }
-        .alignItems(HorizontalAlign.Start)
-        ActionButton({ label: '导出 WAV', variant: 'primary', available: !this.taskLabel,
-          action: () => { this.output('save') } })
       }
       if (this.taskLabel) {
         TaskProgress({ label: this.taskLabel })

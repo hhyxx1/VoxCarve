@@ -46,3 +46,15 @@ test('a rendered WAV header reports the exact retained frame count', async () =>
   assert.equal(parsed.dataOffset, 44);
   assert.throws(() => makeWavHeader(48000, 2, 0), /EMPTY_RENDER/);
 });
+
+test('silence candidates use PCM samples and respect the minimum duration', async () => {
+  const { detectQuietRanges } = await import('../entry/src/main/ets/domain/PcmWav.ets');
+  for (const name of ['mono-16k.wav', 'stereo-48k.wav']) {
+    const data = fixture(name);
+    const track = await readPcmWav(reader(data), data.length);
+    assert.deepEqual(await detectQuietRanges(reader(data), track, 300), [
+      { startFrame: track.sampleRate / 2, endFrame: track.sampleRate }
+    ]);
+    assert.deepEqual(await detectQuietRanges(reader(data), track, 600), []);
+  }
+});

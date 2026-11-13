@@ -10,6 +10,7 @@ export interface ProjectListState {
 export class VoxRoute {
   static readonly Projects = 'projects';
   static readonly Import = 'import';
+  static readonly NewProject = 'new-project';
   static readonly Transcript = 'transcript';
   static readonly Timeline = 'timeline';
   static readonly Silence = 'silence';
@@ -27,6 +28,7 @@ export interface WorkspaceLink {
 }
 
 export const WORKSPACE_LINKS: WorkspaceLink[] = [
+  { route: VoxRoute.Import, label: '音频导入' },
   { route: VoxRoute.Transcript, label: '文字稿' },
   { route: VoxRoute.Silence, label: '停顿复核' },
   { route: VoxRoute.Captions, label: '字幕' },

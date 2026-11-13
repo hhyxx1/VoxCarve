@@ -61,6 +61,7 @@ export struct TextFieldRow {
 export struct SegmentedControl {
   @Prop options: XuzuoChoice[] = [];
   @Prop selectedId: string = '';
+  @Prop available: boolean = true;
   select: (id: string) => void = () => {};
 
   build() {
@@ -73,6 +74,7 @@ export struct SegmentedControl {
           .constraintSize({ minHeight: XuzuoTheme.controlMin })
           .padding({ left: 12, right: 12 })
           .borderRadius(8)
+          .enabled(this.available)
           .accessibilityText(option.id === this.selectedId ? option.label + '，已选中' : option.label)
           .onClick(() => this.select(option.id))
       }, (option: XuzuoChoice): string => option.id)

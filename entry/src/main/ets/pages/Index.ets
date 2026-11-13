@@ -1,4 +1,6 @@
 import { AudioWorkspace } from '../components/AudioWorkspace';
+import { ProjectToolPage } from '../components/ProjectToolPage';
+import type { TimeRange } from '../domain/TimeRange';
 import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import type { MediaProject } from '../domain/MediaModels';
 import { LocalProjectRepository, ProjectRepository } from '../repository/ProjectRepository';
@@ -8,7 +10,6 @@ import {
   XuzuoChoice, showConfirmDialog
 } from '../components/XuzuoControls';
 import { NavigationShell, XuzuoAppBar } from '../components/NavigationShell';
-import { TranscriptPane } from '../components/AudioEditorPanes';
 import { ProjectListState, VoxRoute, WORKSPACE_LINKS, WorkspaceLink, workspaceTitle } from '../viewmodel/WorkspaceState';
 import { SdkProbePanel } from './SdkProbePanel';
 
@@ -31,18 +32,25 @@ struct Index {
   @State private activeProject?: MediaProject = undefined;
   @State private listState: ProjectListState = { status: 'loading', projects: [] };
   @State private projectName: string = '';
+  @State private projectQuery: string = '';
   @State private createError: string = '';
   @State private savingProject: boolean = false;
   @State private wide: boolean = false;
   @State private themeChoice: string = 'system';
   @State private themeError: boolean = false;
+  @State private savingTheme: boolean = false;
+  @State private timelineRevision: number = 0;
+  @State private selectedRange?: TimeRange = undefined;
   private paths: NavPathStack = new NavPathStack();
   private repository?: ProjectRepository;
+  private guarded: boolean = false;
+  private toolBusy: boolean = false;
 
   aboutToAppear(): void {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.repository = new LocalProjectRepository(context);
     this.loadProjects();
+    this.restoreTheme();
   }
 
   private async loadProjects(): Promise<void> {
@@ -61,7 +69,7 @@ struct Index {
   private openImport(): void {
     this.projectName = '';
     this.createError = '';
-    this.paths.pushPath({ name: VoxRoute.Import }, false);
+    this.paths.pushPath({ name: VoxRoute.NewProject }, false);
   }
 
   private async createProject(): Promise<void> {
@@ -75,9 +83,11 @@ struct Index {
       const project = await repository.create(this.projectName);
       this.listState = { status: 'ready', projects: [project].concat(this.listState.projects) };
       this.activeProject = project;
+      this.selectedRange = undefined;
       this.projectName = '';
-      this.activeTab = VoxRoute.Projects;
+      this.activeTab = VoxRoute.Timeline;
       this.paths.pop(false);
+      this.paths.pushPath({ name: VoxRoute.Import }, false);
     } catch (error) {
       this.createError = '项目未保存，请重试。';
     } finally {
@@ -99,7 +109,30 @@ struct Index {
     }
   }
 
-  private selectTheme(id: string): void {
+  private async restoreTheme(): Promise<void> {
+    try {
+      this.applyTheme(await this.repository?.loadTheme() ?? 'system');
+    } catch (_) {
+      this.themeError = true;
+    }
+  }
+
+  private async selectTheme(id: string): Promise<void> {
+    if (this.savingTheme) {
+      return;
+    }
+    this.savingTheme = true;
+    try {
+      await this.repository?.saveTheme(id);
+      this.applyTheme(id);
+    } catch (_) {
+      this.themeError = true;
+    } finally {
+      this.savingTheme = false;
+    }
+  }
+
+  private applyTheme(id: string): void {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     let mode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET;
     if (id === 'light') {
@@ -116,9 +149,28 @@ struct Index {
     }
   }
 
+  private leaveTool(): void {
+    if (this.toolBusy) {
+      return;
+    }
+    if (this.guarded) {
+      showConfirmDialog(this.getUIContext(), '放弃未保存的修改？', '本次修改将被清除。', '放弃', () => {
+        this.guarded = false;
+        this.paths.pop(false);
+      });
+    } else {
+      this.paths.pop(false);
+    }
+  }
+
   @Builder
   sectionTitle(title: string) {
     Text(title).fontSize(28).fontWeight(FontWeight.Bold).fontColor(XuzuoTheme.textPrimary)
+  }
+
+  private visibleProjects(): MediaProject[] {
+    const query = this.projectQuery.trim().toLowerCase();
+    return this.listState.projects.filter((project: MediaProject): boolean => project.name.toLowerCase().includes(query));
   }
 
   @Builder
@@ -138,11 +190,18 @@ struct Index {
         })
       } else {
         ActionButton({ label: '新建项目', variant: 'primary', action: () => this.openImport() })
-        ForEach(this.listState.projects, (project: MediaProject) => {
+        TextFieldRow({ label: '搜索项目', fieldValue: this.projectQuery,
+          update: (query: string) => { this.projectQuery = query } })
+        if (this.visibleProjects().length === 0) {
+          EmptyPanel({ title: '没有匹配的项目', detail: '可以换一个关键词。', actionLabel: '清空搜索',
+            action: () => { this.projectQuery = '' } })
+        }
+        ForEach(this.visibleProjects(), (project: MediaProject) => {
           DataRow({
             title: project.name,
             action: () => {
               this.activeProject = project;
+              this.selectedRange = undefined;
               this.activeTab = VoxRoute.Timeline;
             }
           })
@@ -157,13 +216,17 @@ struct Index {
   timeline() {
     Column({ space: 12 }) {
       this.sectionTitle(this.activeProject?.name ?? '音频剪辑台')
-      AudioWorkspace({ project: this.activeProject, repository: this.repository })
+      ForEach([this.timelineRevision], (revision: number) => {
+        AudioWorkspace({ project: this.activeProject, repository: this.repository, initialRange: this.selectedRange })
+      }, (revision: number) => (this.activeProject?.id ?? 0) + '-' + revision)
       if (!this.activeProject) {
         ActionButton({ label: '查看本地项目', action: () => { this.activeTab = VoxRoute.Projects } })
       }
-      ForEach(WORKSPACE_LINKS, (link: WorkspaceLink) => {
-        DataRow({ title: link.label, action: () => this.paths.pushPath({ name: link.route }, false) })
-      }, (link: WorkspaceLink): string => link.route)
+      if (this.activeProject) {
+        ForEach(WORKSPACE_LINKS, (link: WorkspaceLink) => {
+          DataRow({ title: link.label, action: () => this.paths.pushPath({ name: link.route }, false) })
+        }, (link: WorkspaceLink): string => link.route)
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -175,7 +238,8 @@ struct Index {
       this.sectionTitle('设置')
       Text('外观').fontSize(17).fontWeight(FontWeight.Medium).fontColor(XuzuoTheme.textPrimary)
       SegmentedControl({
-        options: THEME_CHOICES, selectedId: this.themeChoice, select: (id: string) => this.selectTheme(id)
+        options: THEME_CHOICES, selectedId: this.themeChoice, available: !this.savingTheme,
+        select: (id: string) => { this.selectTheme(id) }
       })
       if (this.themeError) {
         ErrorPanel({ message: '外观切换失败。', actionLabel: '' })
@@ -223,7 +287,7 @@ struct Index {
           this.createError = '';
         }
       })
-      Text('项目将保存在本机。创建后可在剪辑台导入 WAV。')
+      Text('项目将保存在本机。创建后可导入 WAV。')
         .fontSize(15).fontColor(XuzuoTheme.textSecondary)
       if (this.createError) {
         ErrorPanel({ message: this.createError, actionLabel: '' })
@@ -245,28 +309,42 @@ struct Index {
     NavDestination() {
       Column() {
         XuzuoAppBar({
-          title: route === VoxRoute.Import ? '新建与导入' :
+          title: route === VoxRoute.NewProject ? '新建项目' :
             route === VoxRoute.Probe ? 'SDK 26 探测' : workspaceTitle(route),
           backAvailable: true,
           back: () => {
-            if (route === VoxRoute.Import) {
+            if (route === VoxRoute.NewProject) {
               this.leaveImport();
             } else {
-              this.paths.pop(false);
+              this.leaveTool();
             }
           }
         })
         Scroll() {
           Column({ space: 12 }) {
-            if (route === VoxRoute.Import) {
+            if (route === VoxRoute.NewProject) {
               this.importContent()
-            } else if (route === VoxRoute.Transcript) {
-              TranscriptPane()
+            } else if (route === VoxRoute.Import) {
+              Text('支持单声道或双声道 16 位 PCM WAV。压缩音频、视频和录音暂不可用。')
+                .fontSize(15).fontColor(XuzuoTheme.textSecondary)
+              AudioWorkspace({ project: this.activeProject, repository: this.repository, importOnly: true,
+                imported: () => { this.timelineRevision++ } })
             } else if (route === VoxRoute.Probe) {
               SdkProbePanel()
             } else {
-              EmptyPanel({ title: '当前没有可处理的音轨',
-                detail: '这里会随项目音频处理结果更新。' })
+              ProjectToolPage({
+                route: route, project: this.activeProject, repository: this.repository,
+                locate: (range: TimeRange) => {
+                  this.selectedRange = range;
+                  this.timelineRevision++;
+                  this.paths.pop(false);
+                },
+                refreshTimeline: () => { this.timelineRevision++ },
+                guardBack: (guarded: boolean, busy: boolean) => {
+                  this.guarded = guarded;
+                  this.toolBusy = busy;
+                }
+              })
             }
           }
           .width('100%')
@@ -284,11 +362,12 @@ struct Index {
     }
     .hideTitleBar(true)
     .onBackPressed((): boolean => {
-      if (route === VoxRoute.Import) {
+      if (route === VoxRoute.NewProject) {
         this.leaveImport();
         return true;
       }
-      return false;
+      this.leaveTool();
+      return true;
     })
   }
 

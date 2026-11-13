@@ -1,0 +1,24 @@
+(node:22164) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ caption projection collapses removed samples and excludes completely removed speech (1.7332ms)
+✔ adjacent output slices meet exactly after overlapping source removals (0.2328ms)
+✔ undo, redo, and branching preserve prior graphs and drop the new branch redo tail (0.184ms)
+✔ 44100 Hz boundaries round-trip and invalid intervals fail (0.1566ms)
+✔ cancelling during verification forbids success and leaves the old task intact (1.2481ms)
+✔ restoring an undone revision preserves both the cursor and the redo path (0.3269ms)
+✔ retaining a source interval is reversible and respects existing removals (0.1987ms)
+✔ SRT sorts captions, rounds to output milliseconds, and rejects ambiguous overlaps (0.4427ms)
+(node:47568) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parses both real PCM fixtures and finds the silent half-second (9.3443ms)
+✔ a truncated data chunk or non-PCM format is rejected (1.241ms)
+✔ a rendered WAV header reports the exact retained frame count (2.8135ms)
+✔ silence candidates use PCM samples and respect the minimum duration (9.882ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 152.4769

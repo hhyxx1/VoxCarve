@@ -3,7 +3,9 @@ import { fileIo, picker } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
 import { EditGraph } from '../domain/EditGraph';
 import type { RenderSegment } from '../domain/MediaModels';
-import { makeWavHeader, readPcmWav, samplePeaks, PcmWavTrack, PcmPeak, ReadBytes } from '../domain/PcmWav';
+import {
+  detectQuietRanges, makeWavHeader, readPcmWav, samplePeaks, PcmWavTrack, PcmPeak, ReadBytes, PcmFrameRange
+} from '../domain/PcmWav';
 
 export interface OpenAudio {
   readonly track: PcmWavTrack;
@@ -29,6 +31,28 @@ export class LocalAudioService {
   async openProject(id: number): Promise<OpenAudio | undefined> {
     const path = this.assetPath(id);
     return (await fileIo.access(path)) ? this.analyze(path) : undefined;
+  }
+
+  async readTrack(id: number): Promise<PcmWavTrack | undefined> {
+    const path = this.assetPath(id);
+    if (!await fileIo.access(path)) {
+      return undefined;
+    }
+    const file = await fileIo.open(path, fileIo.OpenMode.READ_ONLY);
+    try {
+      return await readPcmWav(this.reader(file.fd), (await fileIo.stat(file.fd)).size);
+    } finally {
+      await fileIo.close(file);
+    }
+  }
+
+  async quietRanges(id: number, track: PcmWavTrack, minimumMs: number): Promise<PcmFrameRange[]> {
+    const file = await fileIo.open(this.assetPath(id), fileIo.OpenMode.READ_ONLY);
+    try {
+      return await detectQuietRanges(this.reader(file.fd), track, minimumMs);
+    } finally {
+      await fileIo.close(file);
+    }
   }
 
   private reader(fd: number): ReadBytes {
@@ -158,17 +182,40 @@ export class LocalAudioService {
     }
   }
 
-  async save(path: string, id: number): Promise<number | undefined> {
+  private async chooseSaveUri(filename: string): Promise<string | undefined> {
     const options = new picker.DocumentSaveOptions();
-    options.newFileNames = ['voxcarve-cut-' + id + '.wav'];
+    options.newFileNames = [filename];
     const targets = await new picker.DocumentViewPicker(this.context).save(options);
-    if (targets.length === 0) {
+    return targets[0];
+  }
+
+  async saveCaptionText(id: number, content: string): Promise<boolean> {
+    const uri = await this.chooseSaveUri('voxcarve-captions-' + id + '.srt');
+    if (!uri) {
+      return false;
+    }
+    const target = await fileIo.open(uri, fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+    try {
+      const bytes = await fileIo.write(target.fd, content);
+      if (bytes <= 0 || (await fileIo.stat(target.fd)).size !== bytes) {
+        throw new Error('INCOMPLETE_EXPORT');
+      }
+      await fileIo.fsync(target.fd);
+      return true;
+    } finally {
+      await fileIo.close(target);
+    }
+  }
+
+  async save(path: string, id: number, filename: string = ''): Promise<number | undefined> {
+    const uri = await this.chooseSaveUri(filename || 'voxcarve-cut-' + id + '.wav');
+    if (!uri) {
       return undefined;
     }
     const input = await fileIo.open(path, fileIo.OpenMode.READ_ONLY);
     try {
       const expected = (await fileIo.stat(input.fd)).size;
-      const target = await fileIo.open(targets[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      const target = await fileIo.open(uri, fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
       try {
         const buffer = new ArrayBuffer(262144);
         let copied = 0;

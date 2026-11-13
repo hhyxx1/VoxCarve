@@ -1,0 +1,72 @@
+Observed '放弃未保存的修改？' [241,1188][1039,1354]
+Observed 'Verified-phrase' [119,758][521,824]
+Observed '文字稿已保存' [70,1168][414,1263]
+Observed '1000.000–1500.000 毫秒' [119,838][674,895]
+Observed '1000' [70,1424][1210,1592]
+Observed '1500' [70,1719][1210,1887]
+Observed '500' [70,948][1210,1116]
+Observed '1000' [70,1243][1210,1411]
+Observed '字幕已保存' [70,1304][368,1399]
+Observed '500.000–1000.000 毫秒' [119,900][646,957]
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Observed '48000 Hz · 2 声道 · 原始 2.000 秒 · 剪后 1.500 秒' [70,1167][1194,1291]
+Observed '500.000–1000.000 毫秒' [119,1115][730,1181]
+Observed '500' [70,1424][1210,1592]
+Observed '1000' [70,1719][1210,1887]
+Observed '播放完成' [70,1091][323,1186]
+Observed '当前版本 1' [70,402][361,497]
+Observed '当前版本 0' [70,402][361,497]
+Observed '当前版本 1' [70,402][361,497]
+Observed '播放完成' [70,930][323,1025]
+Observed '500.000–1000.000 毫秒' [119,1110][646,1167]
+Observed 'Save file to My phone' [84,384][635,450]
+Observed '已导出 SRT' [70,1514][370,1609]
+FileTransfer finish, Size:53, File count = 1, time:23ms rate:2.30kB/s
+Observed '剪后时长 1.500 秒' [70,402][521,468]
+Observed '导出文件名' [70,614][316,671]
+Observed 'Save file to My phone' [84,384][635,450]
+Observed '已取消保存' [70,1119][368,1214]
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Observed '搜索项目' [70,812][267,869]
+force stop process successfully.
+start ability successfully.
+
+text                                 bounds
+----                                 ------
+08, :, 54                            [280,38][419,122]
+剪后时长 1.500 秒                    [70,402][521,468]
+WAV · 16 位 PCM · 保留源采样率和声道 [70,510][1014,572]
+保存 WAV                             [70,909][417,1077]
+导出文件名                           [70,614][316,671]
+voxcarve-cut-2                       [70,699][1210,867]
+渲染 WAV                             [70,1231][302,1293]
+Save file to My phone                [84,384][635,450]
+Settings                             [105,52][266,108]
+100                                  [1128,58][1198,103]
+voxcarve-cut-2.wav                   [35,485][1245,625]
+This file name already exists        [84,636][708,710]
+:                                    [342,54][357,107]
+54                                   [357,49][419,111]
+My phone                             [224,841][1140,907]
+Download                             [266,1041][1140,1107]
+Documents                            [266,1240][1140,1306]
+08                                   [280,49][342,111]
+
+Observed '已导出 WAV · 288044 字节' [70,1119][691,1214]
+299e06022d31c9740d1c90b0a8f18f16efcd74f5c3255d60fa127b8f63c0829d  /storage/media/100/local/files/Docs/Download/voxcarve-cut-2.wav
+Theme screenshot pixels (dark before restart / after restart): (10, 22, 34) / (10, 22, 34)
+Physical API 26 device: HAP install error 9568320, no signature file.
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Observed '音频导入' [281,189][589,279]
+Observed '选择 WAV 文件' [70,998][534,1166]
+Observed '选择 WAV 文件' [70,998][534,1166]
+Observed 'Stage04-Import-Check' [70,417][1157,532]
