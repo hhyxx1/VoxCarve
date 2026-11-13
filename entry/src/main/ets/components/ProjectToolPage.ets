@@ -413,6 +413,12 @@ export struct ProjectToolPage {
 
   private historyLabel(decision: EditDecision): string {
     const range = this.frameRange(decision.sourceStartFrame, decision.sourceEndFrame);
+    if (decision.mode === 'split') {
+      return '分割 · ' + (range.startUs / 1000000).toFixed(3) + ' 秒';
+    }
+    if (decision.mode === 'fade') {
+      return '淡入 · ' + (range.endUs / 1000000).toFixed(3) + ' 秒';
+    }
     return (decision.mode === 'remove' ? '删除 ' : '保留 ') + this.rangeLabel(range.startUs, range.endUs);
   }
 

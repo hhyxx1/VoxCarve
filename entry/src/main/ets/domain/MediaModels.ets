@@ -28,7 +28,7 @@ export interface TranscriptSegment {
   readonly verified: boolean;
 }
 
-export type EditMode = 'remove' | 'retain';
+export type EditMode = 'remove' | 'retain' | 'split' | 'fade';
 
 export interface EditDecision {
   readonly id: string;

@@ -135,3 +135,17 @@ test('recovery matches only exact VoxCarve temporary basenames in their own dire
   assert.equal(isStagedImport('voxcarve-render-3-123456-0.wav'), false);
   assert.equal(isRenderCache('project-3.wav.importing'), false);
 });
+
+test('split keeps exact output frames and fade survives restore and undo', () => {
+  const graph = new EditGraph(48000, 96000).remove('pause', 24000, 48000, 1);
+  assert.throws(() => graph.split('removed', 30000, 2), /INVALID_SPLIT/);
+  const updated = graph.split('boundary', 60000, 2).fadeIn('fade', 9600, 3);
+  const saved = EditGraph.restore(JSON.parse(JSON.stringify(updated.snapshot())));
+  assert.equal(saved.fadeInFrames(), 9600);
+  assert.equal(saved.undo().fadeInFrames(), 0);
+  assert.equal(saved.undo().redo().fadeInFrames(), 9600);
+  const result = saved.render('audio');
+  assert.equal(result.totalFrames, 72000);
+  assert.deepEqual(result.segments.map(s => [s.sourceStartFrame, s.sourceEndFrame, s.outputStartFrame]),
+    [[0, 24000, 0], [48000, 60000, 24000], [60000, 96000, 36000]]);
+});

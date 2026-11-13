@@ -75,13 +75,16 @@ export class EditGraph {
 
   private validateDecision(decision: EditDecision): void {
     if (!decision.id.trim() || !Number.isSafeInteger(decision.createdAtMs) || decision.createdAtMs < 0 ||
-      (decision.mode !== 'remove' && decision.mode !== 'retain')) {
+      (decision.mode !== 'remove' && decision.mode !== 'retain' && decision.mode !== 'split' &&
+        decision.mode !== 'fade')) {
       throw new Error('INVALID_EDIT_METADATA');
     }
     const start = decision.sourceStartFrame;
     const end = decision.sourceEndFrame;
     if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) ||
-      start < 0 || start >= end || end > this.sourceFrameCount) {
+      start < 0 || start > end || end > this.sourceFrameCount ||
+      (decision.mode === 'split' ? start !== end || start === 0 || end === this.sourceFrameCount :
+        decision.mode === 'fade' ? start !== 0 : start === end)) {
       throw new RangeError('INVALID_EDIT_RANGE');
     }
   }
@@ -92,6 +95,27 @@ export class EditGraph {
 
   retain(id: string, start: number, end: number, createdAtMs: number): EditGraph {
     return this.add('retain', id, start, end, createdAtMs);
+  }
+
+  split(id: string, frame: number, createdAtMs: number): EditGraph {
+    if (!this.render('audio').segments.some((segment: RenderSegment): boolean =>
+      frame > segment.sourceStartFrame && frame < segment.sourceEndFrame)) {
+      throw new RangeError('INVALID_SPLIT');
+    }
+    return this.add('split', id, frame, frame, createdAtMs);
+  }
+
+  fadeIn(id: string, frames: number, createdAtMs: number): EditGraph {
+    return this.add('fade', id, 0, frames, createdAtMs);
+  }
+
+  fadeInFrames(): number {
+    for (let index = this.cursor - 1; index >= 0; index--) {
+      if (this.decisions[index].mode === 'fade') {
+        return this.decisions[index].sourceEndFrame;
+      }
+    }
+    return 0;
   }
 
   private add(mode: EditMode, id: string, start: number, end: number, createdAtMs: number): EditGraph {
@@ -124,6 +148,7 @@ export class EditGraph {
 
   render(trackId: string): RenderSequence {
     const removed: EditDecision[] = [];
+    const splits: number[] = [];
     let sourceFrame = 0;
     let sourceEnd = this.sourceFrameCount;
     for (let index = 0; index < this.cursor; index++) {
@@ -131,8 +156,10 @@ export class EditGraph {
       if (decision.mode === 'retain') {
         sourceFrame = Math.max(sourceFrame, decision.sourceStartFrame);
         sourceEnd = Math.min(sourceEnd, decision.sourceEndFrame);
-      } else {
+      } else if (decision.mode === 'remove') {
         removed.push(decision);
+      } else if (decision.mode === 'split') {
+        splits.push(decision.sourceStartFrame);
       }
     }
     removed.sort((a: EditDecision, b: EditDecision): number => a.sourceStartFrame - b.sourceStartFrame);
@@ -152,7 +179,23 @@ export class EditGraph {
       segments.push(this.segment(sourceFrame, sourceEnd, outputFrame));
       outputFrame += sourceEnd - sourceFrame;
     }
-    return { trackId: trackId, sampleRate: this.sampleRate, totalFrames: outputFrame, segments: segments };
+    const divided: RenderSegment[] = [];
+    splits.sort((a: number, b: number): number => a - b);
+    let index = 0;
+    for (const segment of segments) {
+      let start = segment.sourceStartFrame;
+      let output = segment.outputStartFrame;
+      while (index < splits.length && splits[index] < segment.sourceEndFrame) {
+        const split = splits[index++];
+        if (split > start) {
+          divided.push(this.segment(start, split, output));
+          output += split - start;
+          start = split;
+        }
+      }
+      divided.push(this.segment(start, segment.sourceEndFrame, output));
+    }
+    return { trackId: trackId, sampleRate: this.sampleRate, totalFrames: outputFrame, segments: divided };
   }
 
   private segment(start: number, end: number, output: number): RenderSegment {

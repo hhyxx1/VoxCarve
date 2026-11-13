@@ -81,31 +81,42 @@ export async function readPcmWav(read: ReadBytes, fileSize: number): Promise<Pcm
   throw new Error('INVALID_WAV');
 }
 
-export async function samplePeaks(read: ReadBytes, track: PcmWavTrack, bins: number): Promise<PcmPeak[]> {
+async function readPeaks(read: ReadBytes, track: PcmWavTrack, bins: number, separate: boolean): Promise<PcmPeak[][]> {
   const count = Math.min(bins, track.frameCount);
   if (!Number.isInteger(count) || count <= 0 || count > 4096) {
     throw new RangeError('INVALID_PEAK_COUNT');
   }
-  const peaks: PcmPeak[] = [];
+  const lanes: PcmPeak[][] = separate && track.channels === 2 ? [[], []] : [[]];
   for (let index = 0; index < count; index++) {
     let frame = Math.floor(index * track.frameCount / count);
     const end = Math.floor((index + 1) * track.frameCount / count);
-    let min = 32767;
-    let max = -32768;
+    const minima = [32767, 32767];
+    const maxima = [-32768, -32768];
     while (frame < end) {
       const frames = Math.min(end - frame, Math.floor(262144 / track.blockAlign));
       const bytes = frames * track.blockAlign;
       const block = await readExact(read, track.dataOffset + frame * track.blockAlign, bytes);
       for (let sample = 0; sample < bytes; sample += 2) {
         const value = block.getInt16(sample, true);
-        min = Math.min(min, value);
-        max = Math.max(max, value);
+        const lane = lanes.length === 2 ? (sample / 2) % 2 : 0;
+        minima[lane] = Math.min(minima[lane], value);
+        maxima[lane] = Math.max(maxima[lane], value);
       }
       frame += frames;
     }
-    peaks.push({ min: min / 32768, max: max / 32768 });
+    for (let lane = 0; lane < lanes.length; lane++) {
+      lanes[lane].push({ min: minima[lane] / 32768, max: maxima[lane] / 32768 });
+    }
   }
-  return peaks;
+  return lanes;
+}
+
+export async function samplePeaks(read: ReadBytes, track: PcmWavTrack, bins: number): Promise<PcmPeak[]> {
+  return (await readPeaks(read, track, bins, false))[0];
+}
+
+export function sampleChannelPeaks(read: ReadBytes, track: PcmWavTrack, bins: number): Promise<PcmPeak[][]> {
+  return readPeaks(read, track, bins, true);
 }
 
 export function makeWavHeader(sampleRate: number, channels: number, frames: number): ArrayBuffer {

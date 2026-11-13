@@ -13,4 +13,5 @@ HarmonyOS 7 · API 26 · 原生 Stage 工程。创建本地项目后，可导入
 
 - [阶段 06 验收](docs/dev/ACCEPTANCE_REPORT.md) · [发布就绪](docs/dev/RELEASE_READINESS.md)
 - [阶段 08 压缩音频导入与外部播放复验](docs/dev/COMPRESSED_IMPORT_QA.md)
+- [剪辑台交互设计稿](docs/design/timeline-preview.html)
 - 真机复验使用 API 26 MIA-AL00。配置本机 DevEco 签名后，按环境文档构建，选 uildMode=release 生成签名包，并用 hdc install -r 安装对应 HAP。

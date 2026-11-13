@@ -7,12 +7,12 @@ import type { RenderSegment } from '../domain/MediaModels';
 import { recognizeMandarin, OfflineSpeechResult } from './OfflineSpeechService';
 import { decodeAudio } from 'libvoxprobe.so';
 import {
-  detectQuietRanges, makeWavHeader, readPcmWav, samplePeaks, PcmWavTrack, PcmPeak, ReadBytes, PcmFrameRange
+  detectQuietRanges, makeWavHeader, readPcmWav, sampleChannelPeaks, PcmWavTrack, PcmPeak, ReadBytes, PcmFrameRange
 } from '../domain/PcmWav';
 
 export interface OpenAudio {
   readonly track: PcmWavTrack;
-  readonly peaks: PcmPeak[];
+  readonly peaks: PcmPeak[][];
 }
 
 const importingProjects = new Set<number>();
@@ -96,7 +96,7 @@ export class LocalAudioService {
     try {
       const read = this.reader(file.fd);
       const track = await readPcmWav(read, (await fileIo.stat(file.fd)).size);
-      return { track: track, peaks: await samplePeaks(read, track, 192) };
+      return { track: track, peaks: await sampleChannelPeaks(read, track, 192) };
     } finally {
       await fileIo.close(file);
     }
@@ -181,6 +181,7 @@ export class LocalAudioService {
   async render(projectId: number, track: PcmWavTrack, graph: EditGraph, checkpoint?: () => void): Promise<string> {
     checkpoint?.();
     const sequence = graph.render(projectId.toString());
+    const fadeFrames = Math.min(graph.fadeInFrames(), sequence.totalFrames);
     const header = makeWavHeader(track.sampleRate, track.channels, sequence.totalFrames);
     const destination = this.context.cacheDir + '/voxcarve-render-' + projectId + '-' +
       Date.now() + '-' + renderSerial++ + '.wav';
@@ -192,7 +193,7 @@ export class LocalAudioService {
         await this.writeBlock(output.fd, header);
         const read = this.reader(input.fd);
         for (const segment of sequence.segments) {
-          await this.copySegment(read, output.fd, track, segment, checkpoint);
+          await this.copySegment(read, output.fd, track, segment, fadeFrames, checkpoint);
         }
         const expected = header.byteLength + sequence.totalFrames * track.blockAlign;
         if ((await fileIo.stat(output.fd)).size !== expected) {
@@ -224,9 +225,10 @@ export class LocalAudioService {
   }
 
   private async copySegment(read: ReadBytes, fd: number, track: PcmWavTrack, segment: RenderSegment,
-    checkpoint?: () => void): Promise<void> {
+    fadeFrames: number, checkpoint?: () => void): Promise<void> {
     let offset = track.dataOffset + segment.sourceStartFrame * track.blockAlign;
     const end = track.dataOffset + segment.sourceEndFrame * track.blockAlign;
+    let outputFrame = segment.outputStartFrame;
     while (offset < end) {
       checkpoint?.();
       const length = Math.min(262144, end - offset);
@@ -235,7 +237,20 @@ export class LocalAudioService {
       if (block.byteLength !== length) {
         throw new Error('INCOMPLETE_READ');
       }
+      const frameCount = length / track.blockAlign;
+      if (outputFrame < fadeFrames) {
+        const pcm = new DataView(block);
+        const ramp = Math.min(frameCount, fadeFrames - outputFrame);
+        for (let frame = 0; frame < ramp; frame++) {
+          const gain = (outputFrame + frame) / fadeFrames;
+          for (let channel = 0; channel < track.channels; channel++) {
+            const sampleOffset = frame * track.blockAlign + channel * 2;
+            pcm.setInt16(sampleOffset, Math.round(pcm.getInt16(sampleOffset, true) * gain), true);
+          }
+        }
+      }
       await this.writeBlock(fd, block);
+      outputFrame += frameCount;
       offset += length;
     }
   }
@@ -303,13 +318,20 @@ export class LocalAudioService {
     }
   }
 
-  async play(path: string, status: (state: string) => void): Promise<void> {
+  async play(path: string, status: (state: string) => void, position?: (milliseconds: number) => void): Promise<void> {
     await this.stop();
     const file = await fileIo.open(path, fileIo.OpenMode.READ_ONLY);
     this.playbackFile = file;
     try {
       const player = await media.createAVPlayer();
       this.player = player;
+      if (position) {
+        player.on('timeUpdate', (milliseconds: number) => {
+          if (this.player === player) {
+            position(milliseconds);
+          }
+        });
+      }
       player.on('error', () => status('播放失败'));
       player.on('stateChange', async (state: media.AVPlayerState) => {
         if (this.player !== player) {
