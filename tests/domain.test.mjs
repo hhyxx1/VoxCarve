@@ -28,7 +28,7 @@ registerHooks({
 const domain = '../entry/src/main/ets/domain/';
 const { EditGraph, frameToTimeUs, timeUsToFrame } = await import(domain + 'EditGraph.ets');
 const { RenderTask, TaskStatus } = await import(domain + 'RenderTask.ets');
-const { mapSourceRange, parseTimeRange } = await import(domain + 'TimeRange.ets');
+const { captionTimelineKey, mapSourceRange, parseTimeRange, verifyCaptionTimeline } = await import(domain + 'TimeRange.ets');
 
 test('caption projection collapses removed samples and excludes completely removed speech', () => {
   const sequence = new EditGraph(48000, 96000).remove('pause', 24000, 48000, 1).render('audio');
@@ -148,4 +148,16 @@ test('split keeps exact output frames and fade survives restore and undo', () =>
   assert.equal(result.totalFrames, 72000);
   assert.deepEqual(result.segments.map(s => [s.sourceStartFrame, s.sourceEndFrame, s.outputStartFrame]),
     [[0, 24000, 0], [48000, 60000, 24000], [60000, 96000, 36000]]);
+});
+
+test('caption exports reject stale and legacy output times even inside the new duration', () => {
+  const original = new EditGraph(48000, 96000);
+  const cue = { id: 'caption', text: 'Test', outputStartUs: 500000, outputEndUs: 700000,
+    timelineKey: captionTimelineKey(original.render('audio')) };
+  const removed = original.remove('head', 0, 4800, 1);
+  assert.throws(() => verifyCaptionTimeline([cue], removed.render('audio')), /CAPTION_TIMELINE_CHANGED/);
+  assert.throws(() => verifyCaptionTimeline([{ ...cue, timelineKey: undefined }], original.render('audio')),
+    /CAPTION_TIMELINE_CHANGED/);
+  verifyCaptionTimeline([cue], removed.undo().render('audio'));
+  verifyCaptionTimeline([cue], original.split('split', 4800, 2).fadeIn('fade', 960, 3).render('audio'));
 });

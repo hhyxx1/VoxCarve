@@ -2,7 +2,9 @@ import { common } from '@kit.AbilityKit';
 import { EditGraph, frameToTimeUs } from '../domain/EditGraph';
 import type { CaptionCue, EditDecision, MediaProject, TranscriptSegment } from '../domain/MediaModels';
 import type { PcmFrameRange, PcmWavTrack } from '../domain/PcmWav';
-import { encodeSrt, encodeVtt, mapSourceRange, parseTimeRange, TimeRange } from '../domain/TimeRange';
+import {
+  captionTimelineKey, encodeSrt, encodeVtt, mapSourceRange, parseTimeRange, TimeRange, verifyCaptionTimeline
+} from '../domain/TimeRange';
 import type { ProjectRepository } from '../repository/ProjectRepository';
 import { LocalAudioService } from '../services/LocalAudioService';
 import { VoxRoute } from '../viewmodel/WorkspaceState';
@@ -154,6 +156,11 @@ export struct ProjectToolPage {
     return frameToTimeUs(output ? graph.render('audio').totalFrames : graph.sourceFrameCount, graph.sampleRate);
   }
 
+  private currentTimelineKey(): string {
+    const graph = this.graph;
+    return graph ? captionTimelineKey(graph.render('audio')) : '';
+  }
+
   private async saveText(): Promise<void> {
     const project = this.project;
     const repository = this.repository;
@@ -178,7 +185,7 @@ export struct ProjectToolPage {
         if (output && range) {
           await repository.saveCaption(project.id, {
             id: id, transcriptSegmentId: this.draftSourceId, outputStartUs: range.startUs,
-            outputEndUs: range.endUs, text: body
+            outputEndUs: range.endUs, text: body, timelineKey: this.currentTimelineKey()
           });
           this.captions = await repository.listCaptions(project.id);
         } else {
@@ -234,15 +241,19 @@ export struct ProjectToolPage {
   private async exportCaptions(format: 'srt' | 'vtt'): Promise<void> {
     const project = this.project;
     const service = this.service;
-    if (!project || !service) {
+    const graph = this.graph;
+    if (!project || !service || !graph) {
       return;
     }
     let content: string;
     try {
+      verifyCaptionTimeline(this.captions, graph.render('audio'));
       content = format === 'vtt' ? encodeVtt(this.captions, this.duration(true)) :
         encodeSrt(this.captions, this.duration(true));
-    } catch (_) {
-      this.issue = '字幕有重叠、过短或超出剪后时长。请校对后重试。';
+    } catch (error) {
+      this.issue = (error as Error).message === 'CAPTION_TIMELINE_CHANGED' ?
+        '字幕需要重新校对。请核对标记为待复核的时间并逐条保存，再导出。' :
+        '字幕有重叠、过短或超出剪后时长。请校对后重试。';
       return;
     }
     const label = format.toUpperCase();
@@ -482,7 +493,8 @@ export struct ProjectToolPage {
 
   @Builder
   captionContent() {
-    Text('字幕使用剪后时间。剪辑变更后请复核已保存的字幕。').fontSize(15).fontColor(XuzuoTheme.textSecondary)
+    Text('字幕使用剪后时间。待复核的字幕须核对时间并重新保存后才能导出。')
+      .fontSize(14).fontColor(XuzuoTheme.textSecondary)
     if (this.editing) {
       this.textForm(true)
     } else {
@@ -498,7 +510,8 @@ export struct ProjectToolPage {
       }
       ForEach(this.captions, (cue: CaptionCue) => {
         DataRow({ title: cue.text, detail: this.rangeLabel(cue.outputStartUs, cue.outputEndUs) +
-          (cue.outputEndUs > this.duration(true) ? ' · 超出当前时长' : ''),
+          (cue.outputEndUs > this.duration(true) ? ' · 超出当前时长' :
+            cue.timelineKey !== this.currentTimelineKey() ? ' · 待复核' : ''),
           action: () => this.begin(cue.id, cue.text, '', cue.outputStartUs, cue.outputEndUs, cue.transcriptSegmentId) })
       }, (cue: CaptionCue) => cue.id + cue.text + cue.outputStartUs + cue.outputEndUs + this.duration(true))
       ForEach(this.transcript.filter((segment: TranscriptSegment) => segment.verified), (segment: TranscriptSegment) => {

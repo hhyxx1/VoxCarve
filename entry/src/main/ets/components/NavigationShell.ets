@@ -11,16 +11,16 @@ export struct XuzuoAppBar {
     Row({ space: 12 }) {
       if (this.backAvailable) {
         Button('返回', { type: ButtonType.Normal })
-          .constraintSize({ minHeight: XuzuoTheme.controlMin })
+          .constraintSize({ minHeight: XuzuoTheme.controlMin, minWidth: XuzuoTheme.controlMin })
           .padding({ left: 10, right: 10 })
           .fontSize(14)
           .fontColor(AppAccent.primaryText)
-          .backgroundColor(XuzuoTheme.background)
+          .backgroundColor(Color.Transparent)
           .accessibilityText('返回上一页')
           .onClick(() => this.back())
       }
-      Text(this.title).fontSize(22).fontWeight(FontWeight.Bold).fontColor(XuzuoTheme.textPrimary)
-        .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(this.title).fontSize(20).fontWeight(FontWeight.Medium).fontColor(XuzuoTheme.textPrimary)
+        .layoutWeight(1).maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
     .constraintSize({ minHeight: 56 })

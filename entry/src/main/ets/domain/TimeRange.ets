@@ -6,6 +6,26 @@ export interface TimeRange {
   readonly endUs: number;
 }
 
+export function captionTimelineKey(sequence: RenderSequence): string {
+  const boundaries: number[] = [];
+  for (const segment of sequence.segments) {
+    const last = boundaries.length - 1;
+    if (last >= 0 && boundaries[last] === segment.sourceStartFrame) {
+      boundaries[last] = segment.sourceEndFrame;
+    } else {
+      boundaries.push(segment.sourceStartFrame, segment.sourceEndFrame);
+    }
+  }
+  return sequence.sampleRate + ':' + boundaries.join(',');
+}
+
+export function verifyCaptionTimeline(cues: CaptionCue[], sequence: RenderSequence): void {
+  const key = captionTimelineKey(sequence);
+  if (cues.some((cue: CaptionCue): boolean => cue.timelineKey !== key)) {
+    throw new Error('CAPTION_TIMELINE_CHANGED');
+  }
+}
+
 export function parseTimeRange(start: string, end: string, durationUs: number): TimeRange {
   const valid = /^\d+(\.\d{1,3})?$/;
   if (!valid.test(start.trim()) || !valid.test(end.trim())) {

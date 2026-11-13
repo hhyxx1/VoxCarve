@@ -15,6 +15,7 @@ export struct AudioWorkspace {
   @Prop initialRange?: TimeRange = undefined;
   repository?: ProjectRepository;
   imported: () => void = () => {};
+  openTranscript: () => void = () => {};
   @State private audio?: OpenAudio = undefined;
   @State private graph?: EditGraph = undefined;
   @State private startText: string = '0';
@@ -24,7 +25,8 @@ export struct AudioWorkspace {
   @State private cursorFrame: number = 0;
   @State private fadeText: string = '0';
   @State private snap: boolean = true;
-  @State private showTransport: boolean = false;
+  @State private canCancelRender: boolean = false;
+  @State private renderCancelled: boolean = false;
   @State private segments: RenderSegment[] = [];
   @State private outputFrames: number = 0;
   @State private taskLabel: string = '';
@@ -233,7 +235,13 @@ export struct AudioWorkspace {
             timeUsToFrame(range.startUs, graph.sampleRate), timeUsToFrame(range.endUs, graph.sampleRate), Date.now());
         }
         playbackSequence = graph.render('audio');
-        temporary = await this.service.render(this.project.id, this.audio.track, graph);
+        this.canCancelRender = true;
+        temporary = await this.service.render(this.project.id, this.audio.track, graph, () => {
+          if (this.renderCancelled || !this.mounted) {
+            throw new Error('TASK_CANCELLED');
+          }
+        });
+        this.canCancelRender = false;
       }
       if (mode === 'save' && temporary) {
         const bytes = await this.service.save(temporary, this.project.id);
@@ -257,14 +265,20 @@ export struct AudioWorkspace {
       }
     } catch (error) {
       const code = (error as Error).message;
-      this.issue = code === 'EMPTY_RENDER' ? '当前没有可输出的音频帧，请先撤销或调整剪切。' :
+      if (code === 'TASK_CANCELLED') {
+        this.feedback = '任务已取消';
+      } else {
+        this.issue = code === 'EMPTY_RENDER' ? '当前没有可输出的音频帧，请先撤销或调整剪切。' :
         code === 'INVALID_TIME_RANGE' || code === 'INVALID_EDIT_RANGE' ?
           '请选择音轨范围内的有效起止时间。' : '音频处理失败，请重试。';
+      }
       await this.stopPlayback();
     } finally {
       if (temporary && temporary !== this.renderPath) {
         await this.service.removeTemporary(temporary);
       }
+      this.canCancelRender = false;
+      this.renderCancelled = false;
       this.taskLabel = '';
     }
   }
@@ -321,10 +335,7 @@ export struct AudioWorkspace {
   @Styles
   editorPanel() {
     .width('100%')
-    .padding(12)
-    .backgroundColor(XuzuoTheme.surface)
-    .borderRadius(12)
-    .border({ width: 1, color: XuzuoTheme.outline })
+    .padding({ top: 8, bottom: 8 })
   }
 
   @Builder
@@ -353,8 +364,23 @@ export struct AudioWorkspace {
       }.width('100%')
       this.waveform()
       Text(this.trackSummary()).fontSize(13).fontColor(XuzuoTheme.textSecondary)
+      Row({ space: 8 }) {
+        ActionButton({ label: '试听选区', available: !this.taskLabel, action: () => { this.output('selection') } })
+          .layoutWeight(1)
+        ActionButton({ label: '试听剪后', available: !this.taskLabel, action: () => { this.output('preview') } })
+          .layoutWeight(1)
+        ActionButton({ label: '停止', available: !this.taskLabel && this.feedback === '正在播放',
+          action: () => { this.stopPlayback(); this.feedback = '已停止播放' } }).layoutWeight(1)
+      }.width('100%')
+      Row({ space: 8 }) {
+        ActionButton({ label: '试听原音', variant: 'quiet', available: !this.taskLabel,
+          action: () => { this.output('source') } })
+        ActionButton({ label: '文字稿', variant: 'quiet', available: !this.taskLabel,
+          action: () => this.openTranscript() })
+      }.width('100%')
     }.alignItems(HorizontalAlign.Start).editorPanel()
 
+    Divider().color(XuzuoTheme.outline)
     Column({ space: 8 }) {
       Row({ space: 8 }) {
         this.sectionHeading('当前选区')
@@ -384,35 +410,18 @@ export struct AudioWorkspace {
     Column({ space: 8 }) {
       this.sectionHeading('剪辑工具')
       Row({ space: 8 }) {
-        ActionButton({ label: '修剪', variant: 'primary', available: !this.taskLabel, action: () => { this.edit('retain') } })
+        ActionButton({ label: '保留选区', variant: 'primary', available: !this.taskLabel, action: () => { this.edit('retain') } })
           .layoutWeight(1)
         ActionButton({ label: '分割', available: !this.taskLabel, action: () => { this.edit('split') } }).layoutWeight(1)
-        ActionButton({ label: '删除', available: !this.taskLabel, action: () => { this.edit('remove') } }).layoutWeight(1)
+        ActionButton({ label: '删除选区', variant: 'danger', available: !this.taskLabel,
+          action: () => { this.edit('remove') } }).layoutWeight(1)
       }.width('100%')
       Row({ space: 8 }) {
-        ActionButton({ label: '保留', available: !this.taskLabel, action: () => { this.edit('retain') } }).layoutWeight(1)
         ActionButton({ label: '撤销', available: !this.taskLabel && this.canUndo(), action: () => { this.edit('undo') } })
           .layoutWeight(1)
-        ActionButton({ label: this.showTransport ? '收起试听' : '试听', available: !this.taskLabel,
-          action: () => { this.showTransport = !this.showTransport } }).layoutWeight(1)
+        ActionButton({ label: '重做', available: !this.taskLabel && this.canRedo(),
+          action: () => { this.edit('redo') } }).layoutWeight(1)
       }.width('100%')
-      if (this.canRedo()) {
-        ActionButton({ label: '重做', available: !this.taskLabel, action: () => { this.edit('redo') } })
-      }
-      if (this.showTransport) {
-        Row({ space: 8 }) {
-          ActionButton({ label: '试听原音', available: !this.taskLabel, action: () => { this.output('source') } })
-            .layoutWeight(1)
-          ActionButton({ label: '试听选区', available: !this.taskLabel, action: () => { this.output('selection') } })
-            .layoutWeight(1)
-        }.width('100%')
-        Row({ space: 8 }) {
-          ActionButton({ label: '试听剪后', available: !this.taskLabel, action: () => { this.output('preview') } })
-            .layoutWeight(1)
-          ActionButton({ label: '停止', available: !this.taskLabel, action: () => { this.stopPlayback() } })
-            .layoutWeight(1)
-        }.width('100%')
-      }
     }.alignItems(HorizontalAlign.Start).editorPanel()
 
     Column({ space: 8 }) {
@@ -461,9 +470,14 @@ export struct AudioWorkspace {
           ActionButton({ label: '选择音频文件', variant: 'primary', available: !this.taskLabel,
             action: () => { this.choose() } })
         }
+        if (this.project && !this.importOnly) {
+          ActionButton({ label: '文字稿', variant: 'quiet', available: !this.taskLabel,
+            action: () => this.openTranscript() })
+        }
       }
       if (this.taskLabel) {
-        TaskProgress({ label: this.taskLabel })
+        TaskProgress({ label: this.renderCancelled ? '正在取消' : this.taskLabel,
+          canCancel: this.canCancelRender && !this.renderCancelled, cancel: () => { this.renderCancelled = true } })
       }
       if (this.feedback) {
         StatusChip({ label: this.feedback })

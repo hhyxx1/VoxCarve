@@ -166,6 +166,7 @@ struct Index {
   @Builder
   sectionTitle(title: string) {
     Text(title).fontSize(28).fontWeight(FontWeight.Bold).fontColor(XuzuoTheme.textPrimary)
+      .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
   }
 
   private visibleProjects(): MediaProject[] {
@@ -217,13 +218,15 @@ struct Index {
     Column({ space: 12 }) {
       this.sectionTitle(this.activeProject?.name ?? '音频剪辑台')
       ForEach([this.timelineRevision], (revision: number) => {
-        AudioWorkspace({ project: this.activeProject, repository: this.repository, initialRange: this.selectedRange })
+        AudioWorkspace({ project: this.activeProject, repository: this.repository, initialRange: this.selectedRange,
+          openTranscript: () => this.paths.pushPath({ name: VoxRoute.Transcript }, false) })
       }, (revision: number) => (this.activeProject?.id ?? 0) + '-' + revision)
       if (!this.activeProject) {
         ActionButton({ label: '查看本地项目', action: () => { this.activeTab = VoxRoute.Projects } })
       }
       if (this.activeProject) {
-        ForEach(WORKSPACE_LINKS, (link: WorkspaceLink) => {
+        ForEach(WORKSPACE_LINKS.filter((link: WorkspaceLink): boolean => link.route !== VoxRoute.Transcript),
+          (link: WorkspaceLink) => {
           DataRow({ title: link.label, action: () => this.paths.pushPath({ name: link.route }, false) })
         }, (link: WorkspaceLink): string => link.route)
       }

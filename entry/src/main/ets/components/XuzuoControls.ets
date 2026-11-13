@@ -19,11 +19,14 @@ export struct ActionButton {
     Button(this.pending ? '处理中…' : this.label, { type: ButtonType.Normal, stateEffect: true })
       .fontSize(15)
       .fontWeight(FontWeight.Medium)
-      .fontColor(this.variant === 'primary' ? AppAccent.onPrimary : XuzuoTheme.textPrimary)
-      .backgroundColor(this.variant === 'primary' ? AppAccent.primary : XuzuoTheme.elevated)
-      .borderRadius(10)
+      .fontColor(this.variant === 'primary' ? AppAccent.onPrimary :
+        this.variant === 'danger' ? XuzuoTheme.danger : XuzuoTheme.textPrimary)
+      .backgroundColor(this.variant === 'primary' ? AppAccent.primary :
+        this.variant === 'quiet' ? Color.Transparent : XuzuoTheme.surface)
+      .border({ width: this.variant === 'quiet' || this.variant === 'primary' ? 0 : 1, color: XuzuoTheme.outline })
+      .borderRadius(8)
       .constraintSize({ minHeight: XuzuoTheme.controlMin })
-      .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+      .padding({ left: 8, right: 8, top: 8, bottom: 8 })
       .enabled(this.available && !this.pending)
       .accessibilityText(this.pending ? this.label + '，处理中' : this.label)
       .onClick(() => this.action())
@@ -45,6 +48,8 @@ export struct TextFieldRow {
         .maxLength(this.limit)
         .fontColor(XuzuoTheme.textPrimary)
         .backgroundColor(XuzuoTheme.surface)
+        .border({ width: 1, color: XuzuoTheme.outline })
+        .borderRadius(8)
         .constraintSize({ minHeight: XuzuoTheme.controlMin })
         .accessibilityText(this.label)
         .onChange((text: string) => this.update(text))
@@ -120,7 +125,8 @@ export struct StatusChip {
     Text(this.label)
       .fontSize(13)
       .fontColor(this.tone === 'error' ? XuzuoTheme.danger :
-        this.tone === 'success' ? XuzuoTheme.success : XuzuoTheme.textPrimary)
+        this.tone === 'success' ? XuzuoTheme.success :
+          this.tone === 'warning' ? AppAccent.primaryText : XuzuoTheme.textPrimary)
       .padding({ top: 6, bottom: 6, left: 10, right: 10 })
       .backgroundColor(XuzuoTheme.elevated)
       .borderRadius(8)
@@ -158,8 +164,8 @@ export struct ErrorPanel {
 
   build() {
     Column({ space: 12 }) {
-      StatusChip({ label: '发生错误', tone: 'error' })
       Text(this.message).fontSize(15).fontColor(XuzuoTheme.textPrimary)
+        .accessibilityText('操作失败。' + this.message)
       if (this.actionLabel) {
         ActionButton({ label: this.actionLabel, action: () => this.action() })
       }
