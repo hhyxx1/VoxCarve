@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>VoxCarve external playback</title>
+<script>
+window.verifyPlayback = async (name) => {
+  const audio = new Audio(new URL(name, location.href));
+  audio.muted = true;
+  const finished = new Promise((resolve, reject) => {
+    audio.onended = () => resolve({ duration: audio.duration, position: audio.currentTime, ended: audio.ended });
+    audio.onerror = () => reject(new Error('Media error ' + audio.error.code));
+  });
+  await audio.play();
+  return finished;
+};
+</script>

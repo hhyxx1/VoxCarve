@@ -1,0 +1,12 @@
+base xz_text/xz_background: 14.78:1
+base xz_secondary/xz_background: 5.53:1
+base xz_secondary/xz_surface: 6.24:1
+base xz_on_primary/xz_primary: 7.10:1
+base xz_primary_text/xz_elevated: 8.38:1
+base xz_danger/xz_surface: 6.78:1
+dark xz_text/xz_background: 17.36:1
+dark xz_secondary/xz_background: 7.46:1
+dark xz_secondary/xz_surface: 6.19:1
+dark xz_on_primary/xz_primary: 7.10:1
+dark xz_primary_text/xz_elevated: 7.22:1
+dark xz_danger/xz_surface: 7.28:1

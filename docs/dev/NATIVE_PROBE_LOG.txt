@@ -1,0 +1,10 @@
+11-13 03:39:12.905 10291 10291 I A00000/VoxCarveNative: WAV: audio/raw 16000 Hz 1 ch, first buffer 4096 bytes, PTS 0 us
+11-13 03:39:12.916 10291 10291 I A00000/VoxCarveNative: Decoder audio/mp4a-latm: created
+11-13 03:39:12.932 10291 10291 I A00000/VoxCarveNative: Encoder audio/mp4a-latm: created
+11-13 03:39:12.947 10291 10291 I A00000/VoxCarveNative: Encoder audio/mpeg: created
+11-13 03:39:12.957 10291 10291 I A00000/VoxCarveNative: MP4 muxer: created
+11-13 03:39:12.974 10291 10291 I A00000/VoxCarveNative: WAV: audio/raw 48000 Hz 2 ch, first buffer 4096 bytes, PTS 0 us
+11-13 03:39:12.976 10291 10291 I A00000/VoxCarveNative: Decoder audio/mp4a-latm: created
+11-13 03:39:12.986 10291 10291 I A00000/VoxCarveNative: Encoder audio/mp4a-latm: created
+11-13 03:39:12.988 10291 10291 I A00000/VoxCarveNative: Encoder audio/mpeg: created
+11-13 03:39:12.991 10291 10291 I A00000/VoxCarveNative: MP4 muxer: created

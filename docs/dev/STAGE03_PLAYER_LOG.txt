@@ -1,0 +1,3 @@
+Chrome/158.0.8127.18 HTMLAudioElement
+mono-cut.wav: duration 1.500 s, playback reached the ended event at 1.500 s
+stereo-cut.wav: duration 1.500 s, playback reached the ended event at 1.500 s

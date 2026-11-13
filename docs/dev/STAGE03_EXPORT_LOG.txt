@@ -1,0 +1,8 @@
+mono-cut.wav: 16000 Hz, 1 ch, 24000 frames, 1.500 s, 48044 bytes
+  Export SHA256: 231a9adc6f11dfc64c93d458a3434dc6647c27d07b55a81d7c199e9e687019cd
+  Input SHA256:  92c9c859d1192bf2dfd930bf6fa731a7eb685742ccdfdba8deae36baf9a5a952
+  PCM matches the concatenation of [0, 0.5) s and [1.0, 2.0) s byte-for-byte.
+stereo-cut.wav: 48000 Hz, 2 ch, 72000 frames, 1.500 s, 288044 bytes
+  Export SHA256: 299e06022d31c9740d1c90b0a8f18f16efcd74f5c3255d60fa127b8f63c0829d
+  Input SHA256:  7ae6a3240a1ebabe6a1e8221add599107370ee0189bd048f635881e669ea54a2
+  PCM matches the concatenation of [0, 0.5) s and [1.0, 2.0) s byte-for-byte.

@@ -1,0 +1,12 @@
+xuzuo-assets/
+.idea/
+.hvigor/
+**/build/
+**/oh_modules/
+local.properties
+*.p12
+*.cer
+*.p7b
+*.jks
+.artifacts/
+**/.cxx/

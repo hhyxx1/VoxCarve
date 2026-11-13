@@ -1,0 +1,16 @@
+(node:17708) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ adjacent output slices meet exactly after overlapping source removals (3.2359ms)
+✔ undo, redo, and branching preserve prior graphs and drop the new branch redo tail (0.3016ms)
+✔ 44100 Hz boundaries round-trip and invalid intervals fail (0.4175ms)
+✔ cancelling during verification forbids success and leaves the old task intact (0.3044ms)
+✔ restoring an undone revision preserves both the cursor and the redo path (5.1975ms)
+✔ retaining a source interval is reversible and respects existing removals (0.2498ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 269.2922

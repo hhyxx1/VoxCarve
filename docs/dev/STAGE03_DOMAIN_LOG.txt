@@ -1,0 +1,21 @@
+(node:47044) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ adjacent output slices meet exactly after overlapping source removals (1.3856ms)
+✔ undo, redo, and branching preserve prior graphs and drop the new branch redo tail (0.3926ms)
+✔ 44100 Hz boundaries round-trip and invalid intervals fail (0.7425ms)
+✔ cancelling during verification forbids success and leaves the old task intact (0.6272ms)
+✔ restoring an undone revision preserves both the cursor and the redo path (0.6321ms)
+✔ retaining a source interval is reversible and respects existing removals (0.3288ms)
+(node:36176) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parses both real PCM fixtures and finds the silent half-second (8.8581ms)
+✔ a truncated data chunk or non-PCM format is rejected (1.0502ms)
+✔ a rendered WAV header reports the exact retained frame count (1.19ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 203.1503

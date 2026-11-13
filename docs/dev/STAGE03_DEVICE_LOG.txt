@@ -1,0 +1,80 @@
+Observed '16000 Hz · 1 声道 · 原始 2.000 秒 · 剪后 2.000 秒' [70,1173][1194,1297]
+No Error
+Observed '500' [70,1424][1210,1592]
+Observed '1000' [70,1719][1210,1887]
+Observed '16000 Hz · 1 声道 · 原始 2.000 秒 · 剪后 1.500 秒' [70,1173][1194,1297]
+No Error
+
+text             bounds
+----             ------
+声剪             [70,189][224,279]
+项目             [42,2545][431,2713]
+剪辑台           [445,2545][835,2713]
+设置             [849,2545][1238,2713]
+08, :, 33        [280,38][419,122]
+导出 WAV         [70,1426][417,1594]
+播放完成         [70,1636][323,1731]
+500              [70,333][1210,459]
+结束时间（毫秒） [70,501][463,558]
+1000             [70,586][1210,754]
+删除选区         [70,796][393,964]
+保留选区         [421,796][744,964]
+撤销             [70,1006][288,1174]
+重做             [316,1006][534,1174]
+试听原音         [70,1216][393,1384]
+试听剪后         [421,1216][744,1384]
+停止             [772,1216][990,1384]
+文字稿           [119,1824][287,1890]
+停顿复核         [119,2034][343,2100]
+字幕             [119,2244][231,2310]
+剪后试听         [119,2454][343,2520]
+Settings         [105,52][266,108]
+100              [1128,58][1198,103]
+:                [342,54][357,107]
+33               [357,49][419,111]
+08               [280,49][342,111]
+
+No Error
+Observed '已导出 WAV · 48044 字节' [70,1636][665,1731]
+FileTransfer finish, Size:48044, File count = 1, time:66ms rate:727.94kB/s
+force stop process successfully.
+start ability successfully.
+Observed '16000 Hz · 1 声道 · 原始 2.000 秒 · 剪后 1.500 秒' [70,1173][1194,1297]
+No Error
+No Error
+Observed 'Stage03-Stereo' [119,854][531,920]
+Observed '48000 Hz · 2 声道 · 原始 2.000 秒 · 剪后 2.000 秒' [70,1173][1194,1297]
+No Error
+Observed '500' [70,1424][1210,1592]
+Observed '1000' [70,1719][1210,1887]
+Observed '48000 Hz · 2 声道 · 原始 2.000 秒 · 剪后 1.500 秒' [70,1173][1194,1297]
+Observed '48000 Hz · 2 声道 · 原始 2.000 秒 · 剪后 2.000 秒' [70,1173][1194,1297]
+Observed '48000 Hz · 2 声道 · 原始 2.000 秒 · 剪后 1.500 秒' [70,1173][1194,1297]
+No Error
+Observed '播放完成' [70,1570][323,1665]
+Observed 'Save file to My phone' [84,384][635,450]
+No Error
+Cancelled: no destination WAV
+No Error
+Observed '已导出 WAV · 288044 字节' [70,1570][691,1665]
+7ae6a3240a1ebabe6a1e8221add599107370ee0189bd048f635881e669ea54a2  /storage/media/100/local/files/Docs/Download/stereo-48k.wav
+7ae6a3240a1ebabe6a1e8221add599107370ee0189bd048f635881e669ea54a2  /data/app/el2/100/base/com.hhyxx.voxcarve/haps/entry/files/project-2.wav
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Observed '48000 Hz · 2 声道 · 原始 2.000 秒 · 剪后 1.500 秒' [70,1173][1194,1297]
+No Error
+No Error
+Observed '请选择 16 位 PCM WAV（单声道或双声道）。' [140,1211][1057,1335]
+Observed '暂无音轨' [140,644][420,726]
+Observed '重试' [140,1377][358,1545]
+Invalid input: no source published
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Observed '48000 Hz · 2 声道 · 原始 2.000 秒 · 剪后 1.500 秒' [70,1173][1194,1297]
+No Error
+Observed '播放完成' [70,1745][323,1840]
+Observed '导出 WAV' [70,1535][417,1703]

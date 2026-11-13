@@ -1,0 +1,42 @@
+Observed '项目名称' [70,402][267,459]
+Observed 'Stage02-Verification' [70,487][1210,655]
+Observed '放弃新建项目？' [311,1188][969,1354]
+Observed 'Stage02-Verification' [70,487][1210,655]
+Observed 'Stage02-Verification' [119,854][654,920]
+Observed '待导入素材' [119,934][365,991]
+force stop process successfully.
+start ability successfully.
+Observed 'Stage02-Verification' [119,854][654,920]
+Observed '暂无音轨' [140,644][420,726]
+Observed '暂无文字稿' [140,472][490,554]
+No Error
+Observed '暂无音轨' [140,644][420,726]
+Observed '当前没有可处理的音轨' [140,472][840,554]
+Observed '停顿复核' [281,189][589,279]
+Observed '暂无音轨' [140,644][420,726]
+Observed '当前没有可处理的音轨' [140,472][840,554]
+Observed '字幕' [281,189][435,279]
+Observed '暂无音轨' [140,644][420,726]
+Observed '当前没有可处理的音轨' [140,472][840,554]
+Observed '剪后试听' [281,189][589,279]
+Observed '暂无音轨' [140,644][420,726]
+Observed '当前没有可处理的音轨' [140,472][840,554]
+Observed '导出' [281,189][435,279]
+Observed '暂无音轨' [140,644][420,726]
+Observed '当前没有可处理的音轨' [140,472][840,554]
+Observed '历史与版本' [281,189][666,279]
+Observed '暂无音轨' [140,644][420,726]
+Observed '外观' [70,588][189,658]
+Observed '离线语种：zh-CN' [70,1536][515,1602]
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Phone with system Extra large text
+Observed 'Stage02-Verification' [119,854][654,920]
+Observed '新建项目' [70,588][393,756]
+Observed '剪辑台' [445,2545][835,2713]
+Observed '项目名称' [70,402][267,459]
+Observed '创建项目' [70,891][393,1059]
+Observed '本地项目' [70,417][463,532]
+Observed 'Normal' [1004,1740][1168,1797]

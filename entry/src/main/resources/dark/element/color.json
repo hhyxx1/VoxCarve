@@ -1,0 +1,56 @@
+{
+  "color": [
+    {
+      "value": "#0B1622",
+      "name": "start_window_background"
+    },
+    {
+      "value": "#0B1622",
+      "name": "xz_background"
+    },
+    {
+      "value": "#FF9794",
+      "name": "xz_danger"
+    },
+    {
+      "value": "#1C3546",
+      "name": "xz_elevated"
+    },
+    {
+      "value": "#211941",
+      "name": "xz_on_primary"
+    },
+    {
+      "value": "#3D5360",
+      "name": "xz_outline"
+    },
+    {
+      "value": "#AF9DFF",
+      "name": "xz_primary"
+    },
+    {
+      "value": "#C7BAFF",
+      "name": "xz_primary_text"
+    },
+    {
+      "value": "#93A9B6",
+      "name": "xz_secondary"
+    },
+    {
+      "value": "#FDBF92",
+      "name": "xz_secondary_accent"
+    },
+    {
+      "value": "#76D1A2",
+      "name": "xz_success"
+    },
+    {
+      "value": "#152836",
+      "name": "xz_surface"
+    },
+    {
+      "value": "#F9FAF3",
+      "name": "xz_text"
+    }
+  ]
+}

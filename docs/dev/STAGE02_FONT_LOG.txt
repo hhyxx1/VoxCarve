@@ -1,0 +1,10 @@
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+Normal heading height: 115 px
+Observed 'Extra large' [928,1740][1168,1797]
+Extra large heading height: 149 px
+Observed 'Normal' [1004,1740][1168,1797]
+Huge
+Need a larger font?
+Even larger font sizes are available in Senior mode.
+Observed 'Normal' [1004,1740][1168,1797]

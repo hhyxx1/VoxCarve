@@ -1,0 +1,11 @@
+emulator 7.0.0.107(SP8DEVC00E16R1P1)
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-unsigned.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Observed top-aligned workspace '本地项目' [1004,239][1228,305]
+Observed '还没有项目' [1044,377][1244,424]
+Observed '项目' [24,215][304,311]
+Observed '剪辑台' [24,323][304,419]
+Observed '设置' [24,431][304,527]
+Observed '暂无音轨' [1044,369][1204,416]
