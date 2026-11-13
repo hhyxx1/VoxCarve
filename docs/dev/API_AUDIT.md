@@ -32,3 +32,5 @@
 阶段 06 字幕写入使用 SDK 26 @ohos.util.d.ts 的 TextEncoder.create / encodeInto，导出循环按 UTF-8 字节写入并核对最终长度。[API 参考](https://developer.huawei.com/consumer/en/doc/harmonyos-references/js-apis-util/)
 
 阶段 07 增加启动期沙箱临时文件恢复。2026-11-13 核对 SDK 26 @ohos.file.fs.d.ts 的 listFile、lstat、Stat.isFile 和 unlink，API 26 真机复测。[华为 FileIO 参考](https://developer.huawei.com/consumer/en/doc/harmonyos-references/js-apis-file-fs/)
+
+阶段 08 按本机 SDK 26 的 `native_avcodec_audiocodec.h`、`native_avcodec_base.h`、`native_avbuffer_info.h` 核对同步队列、输出格式及缓冲区标志。通过 `OH_MD_KEY_ENABLE_SYNC_MODE` 配置同步模式，在 NAPI 后台任务中驱动拆封装和解码。真机发现普通 PCM 输出会保留输入的 CODEC_DATA 标志，EOS 缓冲区可带有上一帧的属性，因此按输出槽及 EOS 处理，逐块校验 PCM 格式、大小和时间顺序。[官方同步解码](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/synchronous-audio-decoding/) · [阶段 08 真机证据](COMPRESSED_IMPORT_QA.md)

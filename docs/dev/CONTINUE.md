@@ -21,8 +21,9 @@ DevEco Studio 26.0.0.851、HarmonyOS SDK 26.0.0 Release、Hvigor 6.26.8。阶段
 
 ## 下一步
 
-1. 以受控样本接通压缩音频的拆封装及 PCM 解码，核对声道、采样率、PTS 和导出字节。
-2. 验证 MP3 编码到 EOS 与外部播放。视频路径独立验证关键帧、重编码和音画同步。
-3. 完成项目删除、持久任务恢复和无障碍/尺寸矩阵，再复核发布资产及 AGC 身份。
+阶段 08 已接通 MP3 和 AAC/M4A 的本地拆封装、PCM 解码、波形、非破坏性剪辑与 WAV 导出。设备签名包使用 Release 构建模式和 debug profile。[阶段 08 真机证据](COMPRESSED_IMPORT_QA.md)
+
+1. 验证 MP3 编码到 EOS 与外部播放。视频路径独立验证关键帧、重编码和音画同步。
+2. 完成项目删除、持久任务恢复和无障碍/尺寸矩阵，再复核发布资产及 AGC 身份。
 
 当前仓库无 Git 远端。可用 `git diff 98351f5..HEAD` 审查本轮提交。[验收矩阵](ACCEPTANCE_REPORT.md) · [发布审查](RELEASE_READINESS.md) · [阶段 07 日志](STAGE07_QA_LOG.txt)

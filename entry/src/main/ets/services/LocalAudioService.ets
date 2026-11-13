@@ -5,6 +5,7 @@ import { media } from '@kit.MediaKit';
 import { EditGraph } from '../domain/EditGraph';
 import type { RenderSegment } from '../domain/MediaModels';
 import { recognizeMandarin, OfflineSpeechResult } from './OfflineSpeechService';
+import { decodeAudio } from 'libvoxprobe.so';
 import {
   detectQuietRanges, makeWavHeader, readPcmWav, samplePeaks, PcmWavTrack, PcmPeak, ReadBytes, PcmFrameRange
 } from '../domain/PcmWav';
@@ -125,20 +126,46 @@ export class LocalAudioService {
     }
     const source = await fileIo.open(uris[0], fileIo.OpenMode.READ_ONLY);
     const staged = this.assetPath(id) + '.importing';
+    const decoded = this.assetPath(id) + '.decoding';
     try {
       const originalSize = (await fileIo.stat(source.fd)).size;
       await fileIo.copyFile(source.fd, staged);
       if ((await fileIo.stat(staged)).size !== originalSize) {
         throw new Error('INCOMPLETE_COPY');
       }
-      const result = await this.analyze(staged);
-      await fileIo.rename(staged, this.assetPath(id));
+      try {
+        const result = await this.analyze(staged);
+        await fileIo.rename(staged, this.assetPath(id));
+        return result;
+      } catch (error) {
+        if ((error as Error).message !== 'UNSUPPORTED_WAV') {
+          throw new Error((error as Error).message);
+        }
+      }
+      const input = await fileIo.open(staged, fileIo.OpenMode.READ_ONLY);
+      try {
+        const output = await fileIo.open(decoded, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY |
+          fileIo.OpenMode.TRUNC);
+        try {
+          const code = await decodeAudio(input.fd, originalSize, output.fd);
+          if (code !== 0) {
+            throw new Error('AUDIO_DECODE_' + code);
+          }
+        } finally {
+          await fileIo.close(output);
+        }
+      } finally {
+        await fileIo.close(input);
+      }
+      const result = await this.analyze(decoded);
+      await fileIo.rename(decoded, this.assetPath(id));
       return result;
     } finally {
       try {
         await fileIo.close(source);
       } finally {
         await this.removeTemporary(staged);
+        await this.removeTemporary(decoded);
       }
     }
   }

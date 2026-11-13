@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(voxprobe C)
 
-add_library(voxprobe SHARED media_probe.c)
+add_library(voxprobe SHARED media_probe.c audio_decode.c)
 target_compile_features(voxprobe PRIVATE c_std_17)
 target_link_libraries(voxprobe PRIVATE
     libace_napi.z.so libhilog_ndk.z.so libnative_media_avsource.so

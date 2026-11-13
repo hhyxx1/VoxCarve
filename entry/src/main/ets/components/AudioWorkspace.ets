@@ -78,7 +78,7 @@ export struct AudioWorkspace {
     if (!this.project || !this.service || this.taskLabel || this.audio) {
       return;
     }
-    this.taskLabel = '等待选择或分析 WAV';
+    this.taskLabel = '等待选择或分析音频';
     this.feedback = '';
     this.issue = '';
     try {
@@ -90,8 +90,9 @@ export struct AudioWorkspace {
       }
     } catch (error) {
       const message = (error as Error).message;
-      this.issue = message === 'UNSUPPORTED_WAV' ? '请选择 16 位 PCM WAV（单声道或双声道）。' :
-        '无法导入此文件，请检查文件是否完整并重试。';
+      this.issue = message === 'AUDIO_DECODE_2' ? '此轨道或设备不支持解码。可选择单声道或双声道 16 位 PCM WAV。' :
+        message.startsWith('AUDIO_DECODE_') ? '音频解码失败（' + message + '），请检查文件或选择 PCM WAV。' :
+          '无法导入此文件，请检查文件是否完整并重试。';
     } finally {
       this.taskLabel = '';
     }
@@ -242,7 +243,7 @@ export struct AudioWorkspace {
         select: (start: number, end: number) => { this.updateSelection(start, end) }
       })
       if (this.project && !this.audio && !this.issue) {
-        ActionButton({ label: '选择 WAV 文件', variant: 'primary', available: !this.taskLabel,
+        ActionButton({ label: '选择音频文件', variant: 'primary', available: !this.taskLabel,
           action: () => { this.choose() } })
       }
       if (this.audio && this.graph) {

@@ -124,6 +124,7 @@ test('WebVTT emits sorted plain-text cues and rejects overlaps', async () => {
 test('recovery matches only exact VoxCarve temporary basenames in their own directory', async () => {
   const { isStagedImport, isRenderCache } = await import(domain + 'TemporaryMedia.ets');
   assert.equal(isStagedImport('project-3.wav.importing'), true);
+  assert.equal(isStagedImport('project-3.wav.decoding'), true);
   assert.equal(isRenderCache('voxcarve-render-3-123456-0.wav'), true);
   for (const name of ['project-3.wav', 'voxcarve-cut-3.wav', '../project-3.wav.importing',
     'folder/voxcarve-render-3-123456-0.wav', 'project-3.wav.importing\n',

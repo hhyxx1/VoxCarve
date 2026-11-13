@@ -287,7 +287,7 @@ struct Index {
           this.createError = '';
         }
       })
-      Text('项目将保存在本机。创建后可导入 WAV。')
+      Text('项目将保存在本机。创建后可导入音频。')
         .fontSize(15).fontColor(XuzuoTheme.textSecondary)
       if (this.createError) {
         ErrorPanel({ message: this.createError, actionLabel: '' })
@@ -325,7 +325,7 @@ struct Index {
             if (route === VoxRoute.NewProject) {
               this.importContent()
             } else if (route === VoxRoute.Import) {
-              Text('支持单声道或双声道 16 位 PCM WAV。压缩音频、视频和录音暂不可用。')
+              Text('支持单声道或双声道 16 位 PCM WAV，以及设备可解码的 MP3 和 AAC。视频和录音暂不可用。')
                 .fontSize(15).fontColor(XuzuoTheme.textSecondary)
               AudioWorkspace({ project: this.activeProject, repository: this.repository, importOnly: true,
                 imported: () => { this.timelineRevision++ } })

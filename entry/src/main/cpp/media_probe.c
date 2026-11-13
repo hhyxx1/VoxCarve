@@ -1,5 +1,6 @@
 #define LOG_TAG "VoxCarveNative"
 #include <napi/native_api.h>
+#include "audio_decode.h"
 #include <hilog/log.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -121,8 +122,11 @@ static napi_value RunProbe(napi_env env, napi_callback_info info)
 
 static napi_value Init(napi_env env, napi_value exports)
 {
-    napi_property_descriptor probe = { .utf8name = "runProbe", .method = RunProbe };
-    if (napi_define_properties(env, exports, 1, &probe) != napi_ok) {
+    napi_property_descriptor methods[] = {
+        { .utf8name = "runProbe", .method = RunProbe },
+        { .utf8name = "decodeAudio", .method = VoxDecodeAudio },
+    };
+    if (napi_define_properties(env, exports, sizeof(methods) / sizeof(methods[0]), methods) != napi_ok) {
         return NULL;
     }
     return exports;
