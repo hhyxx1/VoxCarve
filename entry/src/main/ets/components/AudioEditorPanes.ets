@@ -18,6 +18,8 @@ export struct WaveformPane {
   @Prop @Watch('paint') peaks: PcmPeak[][] = [];
   @Prop pcmFrameCount: number = 0;
   @Prop pcmSampleRate: number = 0;
+  @Prop @Watch('paint') viewStart: number = 0;
+  @Prop @Watch('paint') viewEnd: number = 0;
   @Prop @Watch('paint') rangeStart: number = 0;
   @Prop @Watch('paint') rangeEnd: number = 0;
   @Prop @Watch('paint') cursorFrame: number = 0;
@@ -28,18 +30,25 @@ export struct WaveformPane {
   private dragOrigin: number = 0;
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
 
+  private endFrame(): number {
+    return this.viewEnd || this.pcmFrameCount;
+  }
+
   private paint(): void {
     const canvas = this.canvasContext;
     const width = canvas.width;
     const height = canvas.height;
-    if (this.peaks.length === 0 || width <= 0 || height <= 0) {
+    const span = this.endFrame() - this.viewStart;
+    if (width <= 0 || height <= 0 || span <= 0) {
       return;
     }
     canvas.clearRect(0, 0, width, height);
-    if (this.pcmFrameCount > 0 && this.rangeEnd > this.rangeStart) {
+    const selectedStart = Math.max(this.rangeStart, this.viewStart);
+    const selectedEnd = Math.min(this.rangeEnd, this.endFrame());
+    if (selectedEnd > selectedStart) {
       canvas.fillStyle = 'rgba(175, 157, 255, 0.35)';
-      canvas.fillRect(width * this.rangeStart / this.pcmFrameCount, 0,
-        width * (this.rangeEnd - this.rangeStart) / this.pcmFrameCount, height);
+      canvas.fillRect(width * (selectedStart - this.viewStart) / span, 0,
+        width * (selectedEnd - selectedStart) / span, height);
     }
     const laneHeight = height / this.peaks.length;
     for (let channel = 0; channel < this.peaks.length; channel++) {
@@ -60,9 +69,9 @@ export struct WaveformPane {
         canvas.fillText(channel === 0 ? '左声道' : '右声道', 8, top + 15);
       }
     }
-    if (this.pcmFrameCount > 0 && this.interactive) {
+    if (this.cursorFrame >= this.viewStart && this.cursorFrame <= this.endFrame() && this.interactive) {
       canvas.fillStyle = '#FDBF92';
-      canvas.fillRect(Math.min(width - 2, width * this.cursorFrame / this.pcmFrameCount), 0, 2, height);
+      canvas.fillRect(Math.min(width - 2, width * (this.cursorFrame - this.viewStart) / span), 0, 2, height);
     }
   }
 
@@ -71,8 +80,8 @@ export struct WaveformPane {
     if (!this.interactive || !touch || this.canvasContext.width <= 0) {
       return;
     }
-    const frame = touch.x / this.canvasContext.width * this.pcmFrameCount;
-    const position = Math.max(0, Math.min(this.pcmFrameCount,
+    const frame = this.viewStart + touch.x / this.canvasContext.width * (this.endFrame() - this.viewStart);
+    const position = Math.max(this.viewStart, Math.min(this.endFrame(),
       Math.round(frame / this.snapFrames) * this.snapFrames));
     if (event.type === TouchType.Down) {
       this.dragOrigin = position;
@@ -86,7 +95,7 @@ export struct WaveformPane {
 
   build() {
     Column() {
-      if (this.peaks.length === 0) {
+      if (this.pcmFrameCount === 0) {
         EmptyPanel({ title: '暂无音轨', detail: '导入素材后，这里会显示从音频采样生成的波形。' })
       } else {
         Canvas(this.canvasContext)
@@ -99,8 +108,9 @@ export struct WaveformPane {
           .onTouch((event: TouchEvent) => this.handleTouch(event))
         if (this.pcmFrameCount > 0 && this.pcmSampleRate > 0) {
           Row() {
-            Text('00:00:00.000').fontSize(12).fontColor(XuzuoTheme.textSecondary)
-            Text(timecode(frameToTimeUs(this.pcmFrameCount, this.pcmSampleRate)))
+            Text(timecode(frameToTimeUs(this.viewStart, this.pcmSampleRate)))
+              .fontSize(12).fontColor(XuzuoTheme.textSecondary)
+            Text(timecode(frameToTimeUs(this.endFrame(), this.pcmSampleRate)))
               .fontSize(12).fontColor(XuzuoTheme.textSecondary)
           }
           .width('100%')

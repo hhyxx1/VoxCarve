@@ -63,3 +63,20 @@ VoxCarve 自持波形、时间窗、播放头、文本校准、编辑图和剪�
 | 设置 | [浅色](product-audit-evidence/gap-settings-light.png) · [深色](product-audit-evidence/gap-settings-dark.png) | [浅色](product-audit-evidence/gap-tablet-settings.png) · [深色](product-audit-evidence/gap-tablet-settings-dark.png) |
 
 下一轮先处理外部目标失败恢复、压缩时基与字幕重映射，随后完成精确波形编辑、文字双向联动和 UI 验收矩阵。视频、录音及压缩输出排在核心问题之后。
+
+## 波形与字幕复验
+
+本轮以审查提交 1a08aee 为起点。远端 main 为 b24e084。资源库 main 仍为 2621898。下表补充本轮状态，其他功能沿用前文的实现范围，历史 PASS 不计入本轮。
+
+| PRD | 本轮状态 | 证据与未覆盖项 |
+| --- | --- | --- |
+| F02 / F06 | PASS_HOST / PASS_DEVICE | 窗口峰值按真实双声道 PCM 采样，主机测试确认只读指定帧；MIA-AL00 放大 0–1.020 秒，再右移到 0.510–1.530 秒。缩放围绕播放头，左右按钮按半窗平移；保留原有吸附与秒数输入。连续滚动手势、合并及长轨压力 NOT_RUN。 |
+| F04 / F05 | PASS_HOST / PASS_DEVICE | 最大重叠匹配只选已校准句段。真机手工保存测试句段 100–350 ms，定位波形显示 0.1–0.35 秒，再打开文字稿命中该句。播放过程自动追随及同屏检查器 NOT_RUN。 |
+| F08 | PASS_HOST | 签名由采样率和实际连续保留源区间构成。输出由这些区间按顺序累加得到；同游标、同时长但不同来源被拒绝。删除、保留、分割、淡入、撤销重做、等价旧映射、序列化重启与无签名旧数据均有测试。 |
+| F08 | PASS_DEVICE | 旧字幕先显示待复核并阻止导出；校对重存后强制停止并重启，VTT 成功保存并读回。文件 SHA-256 a42f075aebed46672518383f240c79c4a1b4990c6f6de36bfb63649c33ed8861。选择器返回后、打开输出 URI 之前再次从数据库读取编辑图并核对；面板打开期间并发改变编辑图的注入测试 NOT_RUN。 |
+| F09 / F10 | NOT_RUN | 本轮保留渲染代码。前一轮已验证 WAV 字节，本轮未重新测整条试听、WAV 导出及取消链。 |
+| UI | PASS_DEVICE / NOT_RUN | 362.7vp 真机正常剪辑台、放大、文字命中与旧字幕截图。按钮沿用 48vp 最小高度和中性描边；工具位于波形下方。没有加入渐变或装饰卡。1440vp 模拟器安装成功，系统 Picker 未完成素材导入，正常态 NOT_RUN。指定 360/390/430vp 与大字体矩阵 NOT_RUN。 |
+
+SDK 26 Release 干净构建使用 Git 源码归档、ohpm install --all、Node 单测和 Hvigor assembleHap，34 个任务全部重新执行，20 项单测通过。真机使用相同源文件的本机签名构建。签名和 IDE 文件的本地哈希保持一致。
+
+[构建与实测摘录](timeline-regression-evidence/results.txt) · [真机概览](timeline-regression-evidence/timeline-regression-phone-overview.png) · [真机缩放](timeline-regression-evidence/timeline-regression-phone-zoom.png) · [文字定位](timeline-regression-evidence/timeline-regression-phone-transcript.png) · [旧字幕拦截](timeline-regression-evidence/timeline-regression-phone-legacy.png) · [真实 VTT](timeline-regression-evidence/verified.vtt)

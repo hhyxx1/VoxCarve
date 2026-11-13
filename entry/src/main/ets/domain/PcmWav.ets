@@ -81,15 +81,21 @@ export async function readPcmWav(read: ReadBytes, fileSize: number): Promise<Pcm
   throw new Error('INVALID_WAV');
 }
 
-async function readPeaks(read: ReadBytes, track: PcmWavTrack, bins: number, separate: boolean): Promise<PcmPeak[][]> {
-  const count = Math.min(bins, track.frameCount);
+async function readPeaks(read: ReadBytes, track: PcmWavTrack, bins: number, separate: boolean,
+  start: number, endFrame: number): Promise<PcmPeak[][]> {
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(endFrame) ||
+    start < 0 || endFrame > track.frameCount || start >= endFrame) {
+    throw new RangeError('INVALID_PEAK_RANGE');
+  }
+  const length = endFrame - start;
+  const count = Math.min(bins, length);
   if (!Number.isInteger(count) || count <= 0 || count > 4096) {
     throw new RangeError('INVALID_PEAK_COUNT');
   }
   const lanes: PcmPeak[][] = separate && track.channels === 2 ? [[], []] : [[]];
   for (let index = 0; index < count; index++) {
-    let frame = Math.floor(index * track.frameCount / count);
-    const end = Math.floor((index + 1) * track.frameCount / count);
+    let frame = start + Math.floor(index * length / count);
+    const end = start + Math.floor((index + 1) * length / count);
     const minima = [32767, 32767];
     const maxima = [-32768, -32768];
     while (frame < end) {
@@ -112,11 +118,12 @@ async function readPeaks(read: ReadBytes, track: PcmWavTrack, bins: number, sepa
 }
 
 export async function samplePeaks(read: ReadBytes, track: PcmWavTrack, bins: number): Promise<PcmPeak[]> {
-  return (await readPeaks(read, track, bins, false))[0];
+  return (await readPeaks(read, track, bins, false, 0, track.frameCount))[0];
 }
 
-export function sampleChannelPeaks(read: ReadBytes, track: PcmWavTrack, bins: number): Promise<PcmPeak[][]> {
-  return readPeaks(read, track, bins, true);
+export function sampleChannelPeaks(read: ReadBytes, track: PcmWavTrack, bins: number,
+  start: number = 0, end?: number): Promise<PcmPeak[][]> {
+  return readPeaks(read, track, bins, true, start, end ?? track.frameCount);
 }
 
 export function makeWavHeader(sampleRate: number, channels: number, frames: number): ArrayBuffer {

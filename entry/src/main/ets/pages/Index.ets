@@ -41,6 +41,7 @@ struct Index {
   @State private savingTheme: boolean = false;
   @State private timelineRevision: number = 0;
   @State private selectedRange?: TimeRange = undefined;
+  @State private transcriptFocus?: TimeRange = undefined;
   private paths: NavPathStack = new NavPathStack();
   private repository?: ProjectRepository;
   private guarded: boolean = false;
@@ -219,7 +220,10 @@ struct Index {
       this.sectionTitle(this.activeProject?.name ?? '音频剪辑台')
       ForEach([this.timelineRevision], (revision: number) => {
         AudioWorkspace({ project: this.activeProject, repository: this.repository, initialRange: this.selectedRange,
-          openTranscript: () => this.paths.pushPath({ name: VoxRoute.Transcript }, false) })
+          openTranscript: (range?: TimeRange) => {
+            this.transcriptFocus = range;
+            this.paths.pushPath({ name: VoxRoute.Transcript }, false);
+          } })
       }, (revision: number) => (this.activeProject?.id ?? 0) + '-' + revision)
       if (!this.activeProject) {
         ActionButton({ label: '查看本地项目', action: () => { this.activeTab = VoxRoute.Projects } })
@@ -336,7 +340,7 @@ struct Index {
               SdkProbePanel()
             } else {
               ProjectToolPage({
-                route: route, project: this.activeProject, repository: this.repository,
+                route: route, project: this.activeProject, repository: this.repository, focusRange: this.transcriptFocus,
                 locate: (range: TimeRange) => {
                   this.selectedRange = range;
                   this.timelineRevision++;

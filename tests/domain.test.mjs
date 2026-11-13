@@ -28,7 +28,7 @@ registerHooks({
 const domain = '../entry/src/main/ets/domain/';
 const { EditGraph, frameToTimeUs, timeUsToFrame } = await import(domain + 'EditGraph.ets');
 const { RenderTask, TaskStatus } = await import(domain + 'RenderTask.ets');
-const { captionTimelineKey, mapSourceRange, parseTimeRange, verifyCaptionTimeline } = await import(domain + 'TimeRange.ets');
+const { captionTimelineKey, mapSourceRange, parseTimeRange, transcriptAtRange, verifyCaptionTimeline } = await import(domain + 'TimeRange.ets');
 
 test('caption projection collapses removed samples and excludes completely removed speech', () => {
   const sequence = new EditGraph(48000, 96000).remove('pause', 24000, 48000, 1).render('audio');
@@ -160,4 +160,34 @@ test('caption exports reject stale and legacy output times even inside the new d
     /CAPTION_TIMELINE_CHANGED/);
   verifyCaptionTimeline([cue], removed.undo().render('audio'));
   verifyCaptionTimeline([cue], original.split('split', 4800, 2).fadeIn('fade', 960, 3).render('audio'));
+});
+
+test('caption binding follows the source mapping across retain, redo and restored JSON', () => {
+  const graph = new EditGraph(48000, 96000);
+  const left = graph.retain('left', 0, 48000, 1);
+  const right = graph.retain('right', 48000, 96000, 1);
+  const cue = { id: 'old', text: 'Sentence', outputStartUs: 100000, outputEndUs: 200000,
+    timelineKey: captionTimelineKey(left.render('audio')) };
+  assert.equal(left.render('audio').totalFrames, right.render('audio').totalFrames);
+  assert.equal(left.snapshot().cursor, right.snapshot().cursor);
+  assert.throws(() => verifyCaptionTimeline([cue], right.render('audio')), /CAPTION_TIMELINE_CHANGED/);
+  assert.throws(() => verifyCaptionTimeline([cue], left.undo().render('audio')), /CAPTION_TIMELINE_CHANGED/);
+  const restored = EditGraph.restore(JSON.parse(JSON.stringify(left.undo().redo().snapshot())));
+  verifyCaptionTimeline(JSON.parse(JSON.stringify([cue])), restored.render('audio'));
+  const equivalent = graph.remove('tail', 48000, 96000, 2).split('marker', 12000, 3);
+  verifyCaptionTimeline([cue], equivalent.render('audio'));
+  const legacy = { ...cue, timelineKey: undefined };
+  assert.throws(() => verifyCaptionTimeline([legacy], restored.render('audio')), /CAPTION_TIMELINE_CHANGED/);
+  verifyCaptionTimeline([{ ...legacy, timelineKey: captionTimelineKey(restored.render('audio')) }],
+    restored.render('audio'));
+});
+
+test('waveform selection locates the most-overlapping verified sentence', () => {
+  const segments = [
+    { id: 'unverified', verified: false, sourceStartUs: 0, sourceEndUs: 900 },
+    { id: 'left', verified: true, sourceStartUs: 0, sourceEndUs: 300 },
+    { id: 'right', verified: true, sourceStartUs: 300, sourceEndUs: 800 },
+  ];
+  assert.equal(transcriptAtRange(segments, { startUs: 200, endUs: 650 })?.id, 'right');
+  assert.equal(transcriptAtRange(segments, { startUs: 800, endUs: 900 }), undefined);
 });
