@@ -2,7 +2,10 @@ import { common } from '@kit.AbilityKit';
 import { EditGraph, frameToTimeUs } from '../domain/EditGraph';
 import type { CaptionCue, EditDecision, MediaProject, TranscriptSegment } from '../domain/MediaModels';
 import type { PcmFrameRange, PcmWavTrack } from '../domain/PcmWav';
-import { encodeSrt, encodeVtt, mapSourceRange, parseTimeRange, TimeRange } from '../domain/TimeRange';
+import {
+  captionTimelineKey, encodeSrt, encodeVtt, mapSourceRange, parseTimeRange, TimeRange, transcriptAtRange,
+  verifyCaptionTimeline
+} from '../domain/TimeRange';
 import type { ProjectRepository } from '../repository/ProjectRepository';
 import { LocalAudioService } from '../services/LocalAudioService';
 import { VoxRoute } from '../viewmodel/WorkspaceState';
@@ -15,6 +18,7 @@ import { XuzuoTheme } from './XuzuoTheme';
 export struct ProjectToolPage {
   @Prop route: string;
   @Prop project?: MediaProject = undefined;
+  @Prop focusRange?: TimeRange = undefined;
   repository?: ProjectRepository;
   locate: (range: TimeRange) => void = () => {};
   refreshTimeline: () => void = () => {};
@@ -40,6 +44,7 @@ export struct ProjectToolPage {
   @State private draftStart: string = '';
   @State private draftEnd: string = '';
   @State private filename: string = '';
+  @State private focusedSentence?: TranscriptSegment = undefined;
   private service?: LocalAudioService;
   private mounted: boolean = false;
   private serial: number = 0;
@@ -118,6 +123,9 @@ export struct ProjectToolPage {
         }
         if (this.route === VoxRoute.Transcript || this.route === VoxRoute.Captions) {
           this.transcript = await repository.listTranscript(project.id);
+          if (this.route === VoxRoute.Transcript && this.focusRange) {
+            this.focusedSentence = transcriptAtRange(this.transcript, this.focusRange);
+          }
         }
         if (this.route === VoxRoute.Captions) {
           this.captions = await repository.listCaptions(project.id);
@@ -154,6 +162,11 @@ export struct ProjectToolPage {
     return frameToTimeUs(output ? graph.render('audio').totalFrames : graph.sourceFrameCount, graph.sampleRate);
   }
 
+  private currentTimelineKey(): string {
+    const graph = this.graph;
+    return graph ? captionTimelineKey(graph.render('audio')) : '';
+  }
+
   private async saveText(): Promise<void> {
     const project = this.project;
     const repository = this.repository;
@@ -178,7 +191,7 @@ export struct ProjectToolPage {
         if (output && range) {
           await repository.saveCaption(project.id, {
             id: id, transcriptSegmentId: this.draftSourceId, outputStartUs: range.startUs,
-            outputEndUs: range.endUs, text: body
+            outputEndUs: range.endUs, text: body, timelineKey: this.currentTimelineKey()
           });
           this.captions = await repository.listCaptions(project.id);
         } else {
@@ -234,23 +247,33 @@ export struct ProjectToolPage {
   private async exportCaptions(format: 'srt' | 'vtt'): Promise<void> {
     const project = this.project;
     const service = this.service;
-    if (!project || !service) {
+    const graph = this.graph;
+    const repository = this.repository;
+    if (!project || !service || !graph || !repository) {
       return;
     }
     let content: string;
     try {
+      verifyCaptionTimeline(this.captions, graph.render('audio'));
       content = format === 'vtt' ? encodeVtt(this.captions, this.duration(true)) :
         encodeSrt(this.captions, this.duration(true));
-    } catch (_) {
-      this.issue = '字幕有重叠、过短或超出剪后时长。请校对后重试。';
+    } catch (error) {
+      this.issue = (error as Error).message === 'CAPTION_TIMELINE_CHANGED' ?
+        '字幕需要重新校对。请核对标记为待复核的时间并逐条保存，再导出。' :
+        '字幕有重叠、过短或超出剪后时长。请校对后重试。';
       return;
     }
     const label = format.toUpperCase();
     await this.run('保存 ' + label, async () => {
       try {
-        this.message = await service.saveCaptionText(project.id, content, format) ? '已导出 ' + label : '已取消保存';
-      } catch (_) {
-        throw new Error('无法保存字幕，请重试。');
+        this.message = await service.saveCaptionText(project.id, content, format, async () => {
+          const saved = await repository.loadEdits(project.id);
+          const current = saved ?? new EditGraph(graph.sampleRate, graph.sourceFrameCount);
+          verifyCaptionTimeline(this.captions, current.render('audio'));
+        }) ? '已导出 ' + label : '已取消保存';
+      } catch (error) {
+        throw new Error((error as Error).message === 'CAPTION_TIMELINE_CHANGED' ?
+          '保存期间剪辑已变更，请重新校对字幕。' : '无法保存字幕，请重试。');
       }
     });
   }
@@ -450,6 +473,10 @@ export struct ProjectToolPage {
     if (this.editing) {
       this.textForm(false)
     } else {
+      if (this.focusedSentence) {
+        DataRow({ title: this.focusedSentence.text, detail: '与剪辑台选区重叠的已校准句段',
+          action: () => this.editFocusedSentence() })
+      }
       ActionButton({ label: '新增句段', variant: 'primary', available: !this.busyLabel,
         action: () => this.begin('', '', '') })
       if (this.speechSupported()) {
@@ -480,9 +507,17 @@ export struct ProjectToolPage {
     }
   }
 
+  private editFocusedSentence(): void {
+    const sentence = this.focusedSentence;
+    if (sentence && !this.busyLabel) {
+      this.begin(sentence.id, sentence.text, sentence.speaker, sentence.sourceStartUs, sentence.sourceEndUs);
+    }
+  }
+
   @Builder
   captionContent() {
-    Text('字幕使用剪后时间。剪辑变更后请复核已保存的字幕。').fontSize(15).fontColor(XuzuoTheme.textSecondary)
+    Text('字幕使用剪后时间。待复核的字幕须核对时间并重新保存后才能导出。')
+      .fontSize(14).fontColor(XuzuoTheme.textSecondary)
     if (this.editing) {
       this.textForm(true)
     } else {
@@ -498,7 +533,8 @@ export struct ProjectToolPage {
       }
       ForEach(this.captions, (cue: CaptionCue) => {
         DataRow({ title: cue.text, detail: this.rangeLabel(cue.outputStartUs, cue.outputEndUs) +
-          (cue.outputEndUs > this.duration(true) ? ' · 超出当前时长' : ''),
+          (cue.outputEndUs > this.duration(true) ? ' · 超出当前时长' :
+            cue.timelineKey !== this.currentTimelineKey() ? ' · 待复核' : ''),
           action: () => this.begin(cue.id, cue.text, '', cue.outputStartUs, cue.outputEndUs, cue.transcriptSegmentId) })
       }, (cue: CaptionCue) => cue.id + cue.text + cue.outputStartUs + cue.outputEndUs + this.duration(true))
       ForEach(this.transcript.filter((segment: TranscriptSegment) => segment.verified), (segment: TranscriptSegment) => {

@@ -7,6 +7,7 @@ import { ActionButton, ErrorPanel, StatusChip, TaskProgress, TextFieldRow } from
 import { timecode, WaveformPane } from './AudioEditorPanes';
 import { AppAccent, XuzuoTheme } from './XuzuoTheme';
 import type { TimeRange } from '../domain/TimeRange';
+import type { PcmPeak } from '../domain/PcmWav';
 
 @Component
 export struct AudioWorkspace {
@@ -15,6 +16,7 @@ export struct AudioWorkspace {
   @Prop initialRange?: TimeRange = undefined;
   repository?: ProjectRepository;
   imported: () => void = () => {};
+  openTranscript: (range?: TimeRange) => void = () => {};
   @State private audio?: OpenAudio = undefined;
   @State private graph?: EditGraph = undefined;
   @State private startText: string = '0';
@@ -24,9 +26,15 @@ export struct AudioWorkspace {
   @State private cursorFrame: number = 0;
   @State private fadeText: string = '0';
   @State private snap: boolean = true;
-  @State private showTransport: boolean = false;
+  @State private canCancelRender: boolean = false;
+  @State private renderCancelled: boolean = false;
   @State private segments: RenderSegment[] = [];
   @State private outputFrames: number = 0;
+  @State private viewStart: number = 0;
+  @State private viewEnd: number = 0;
+  @State private viewPeaks: PcmPeak[][] = [];
+  @State private loadingWindow: boolean = false;
+  private windowRequest: number = 0;
   @State private taskLabel: string = '';
   @State private feedback: string = '';
   @State private issue: string = '';
@@ -43,6 +51,7 @@ export struct AudioWorkspace {
 
   aboutToDisappear(): void {
     this.mounted = false;
+    this.windowRequest++;
     if (!this.taskLabel) {
       this.stopPlayback();
     }
@@ -74,10 +83,61 @@ export struct AudioWorkspace {
   private setAudio(source: OpenAudio, saved?: EditGraph): void {
     this.audio = source;
     this.setGraph(saved ?? new EditGraph(source.track.sampleRate, source.track.frameCount));
+    this.viewStart = 0;
+    this.viewEnd = source.track.frameCount;
+    this.viewPeaks = source.peaks;
     const range = this.initialRange;
     const rate = source.track.sampleRate;
     this.updateSelection(range ? Math.min(source.track.frameCount, timeUsToFrame(range.startUs, rate)) : 0,
       range ? Math.min(source.track.frameCount, timeUsToFrame(range.endUs, rate)) : source.track.frameCount);
+  }
+
+  private async loadWindow(start: number, size: number): Promise<void> {
+    const audio = this.audio;
+    const id = this.project?.id;
+    const service = this.service;
+    if (!audio || id === undefined || !service) {
+      return;
+    }
+    const total = audio.track.frameCount;
+    const left = Math.max(0, Math.min(start, total - size));
+    const request = ++this.windowRequest;
+    this.loadingWindow = true;
+    try {
+      const peaks = size === total ? audio.peaks : await service.waveformWindow(id, audio.track, left, left + size);
+      if (this.mounted && request === this.windowRequest) {
+        this.viewStart = left;
+        this.viewEnd = left + size;
+        this.viewPeaks = peaks;
+      }
+    } catch (_) {
+      if (this.mounted && request === this.windowRequest) {
+        this.issue = '无法读取这段波形，请重试。';
+      }
+    } finally {
+      if (request === this.windowRequest) {
+        this.loadingWindow = false;
+      }
+    }
+  }
+
+  private zoom(factor: number): void {
+    const track = this.audio?.track;
+    if (track) {
+      const size = Math.min(track.frameCount,
+        Math.max(Math.ceil(track.sampleRate / 20), Math.round((this.viewEnd - this.viewStart) * factor)));
+      const center = this.cursorFrame >= this.viewStart && this.cursorFrame < this.viewEnd ?
+        this.cursorFrame : Math.round((this.viewStart + this.viewEnd) / 2);
+      this.loadWindow(center - Math.floor(size / 2), size);
+    }
+  }
+
+  private goToTranscript(): void {
+    try {
+      this.openTranscript(this.graph ? this.selection(this.graph) : undefined);
+    } catch (_) {
+      this.issue = '请先输入有效选区，再定位文字稿。';
+    }
   }
 
   private async choose(): Promise<void> {
@@ -233,7 +293,13 @@ export struct AudioWorkspace {
             timeUsToFrame(range.startUs, graph.sampleRate), timeUsToFrame(range.endUs, graph.sampleRate), Date.now());
         }
         playbackSequence = graph.render('audio');
-        temporary = await this.service.render(this.project.id, this.audio.track, graph);
+        this.canCancelRender = true;
+        temporary = await this.service.render(this.project.id, this.audio.track, graph, () => {
+          if (this.renderCancelled || !this.mounted) {
+            throw new Error('TASK_CANCELLED');
+          }
+        });
+        this.canCancelRender = false;
       }
       if (mode === 'save' && temporary) {
         const bytes = await this.service.save(temporary, this.project.id);
@@ -257,14 +323,20 @@ export struct AudioWorkspace {
       }
     } catch (error) {
       const code = (error as Error).message;
-      this.issue = code === 'EMPTY_RENDER' ? '当前没有可输出的音频帧，请先撤销或调整剪切。' :
+      if (code === 'TASK_CANCELLED') {
+        this.feedback = '任务已取消';
+      } else {
+        this.issue = code === 'EMPTY_RENDER' ? '当前没有可输出的音频帧，请先撤销或调整剪切。' :
         code === 'INVALID_TIME_RANGE' || code === 'INVALID_EDIT_RANGE' ?
           '请选择音轨范围内的有效起止时间。' : '音频处理失败，请重试。';
+      }
       await this.stopPlayback();
     } finally {
       if (temporary && temporary !== this.renderPath) {
         await this.service.removeTemporary(temporary);
       }
+      this.canCancelRender = false;
+      this.renderCancelled = false;
       this.taskLabel = '';
     }
   }
@@ -321,20 +393,18 @@ export struct AudioWorkspace {
   @Styles
   editorPanel() {
     .width('100%')
-    .padding(12)
-    .backgroundColor(XuzuoTheme.surface)
-    .borderRadius(12)
-    .border({ width: 1, color: XuzuoTheme.outline })
+    .padding({ top: 8, bottom: 8 })
   }
 
   @Builder
   waveform() {
     WaveformPane({
-      peaks: this.audio?.peaks ?? [],
+      peaks: this.viewPeaks,
       pcmFrameCount: this.audio?.track.frameCount ?? 0,
       pcmSampleRate: this.audio?.track.sampleRate ?? 0,
+      viewStart: this.viewStart, viewEnd: this.viewEnd,
       rangeStart: this.selectionStart, rangeEnd: this.selectionEnd, cursorFrame: this.cursorFrame,
-      interactive: !this.importOnly && !this.taskLabel,
+      interactive: !this.importOnly && !this.taskLabel && !this.loadingWindow,
       snapFrames: this.snap ? Math.max(1, Math.round((this.audio?.track.sampleRate ?? 0) / 10)) : 1,
       seek: (frame: number) => { this.cursorFrame = frame },
       select: (start: number, end: number) => { this.updateSelection(start, end) }
@@ -352,9 +422,42 @@ export struct AudioWorkspace {
           .accessibilityText('播放位置 ' + timecode(frameToTimeUs(this.cursorFrame, this.audio?.track.sampleRate ?? 1)))
       }.width('100%')
       this.waveform()
+      Row({ space: 8 }) {
+        ActionButton({ label: '放大', available: !this.loadingWindow && !this.taskLabel &&
+          this.viewEnd - this.viewStart > Math.ceil((this.audio?.track.sampleRate ?? 0) / 20),
+          action: () => { this.zoom(0.5) } })
+        ActionButton({ label: '缩小', available: !this.loadingWindow && !this.taskLabel &&
+          this.viewEnd - this.viewStart < (this.audio?.track.frameCount ?? 0),
+          action: () => { this.zoom(2) } })
+        ActionButton({ label: '向左', available: this.viewStart > 0 && !this.loadingWindow && !this.taskLabel,
+          action: () => { this.loadWindow(this.viewStart - Math.ceil((this.viewEnd - this.viewStart) / 2),
+            this.viewEnd - this.viewStart) } })
+        ActionButton({ label: '向右', available: this.viewEnd < (this.audio?.track.frameCount ?? 0) &&
+          !this.loadingWindow && !this.taskLabel,
+          action: () => { this.loadWindow(this.viewStart + Math.ceil((this.viewEnd - this.viewStart) / 2),
+            this.viewEnd - this.viewStart) } })
+      }.width('100%')
+      if (this.loadingWindow) {
+        Text('正在读取波形').fontSize(12).fontColor(XuzuoTheme.textSecondary)
+      }
       Text(this.trackSummary()).fontSize(13).fontColor(XuzuoTheme.textSecondary)
+      Row({ space: 8 }) {
+        ActionButton({ label: '试听选区', available: !this.taskLabel, action: () => { this.output('selection') } })
+          .layoutWeight(1)
+        ActionButton({ label: '试听剪后', available: !this.taskLabel, action: () => { this.output('preview') } })
+          .layoutWeight(1)
+        ActionButton({ label: '停止', available: !this.taskLabel && this.feedback === '正在播放',
+          action: () => { this.stopPlayback(); this.feedback = '已停止播放' } }).layoutWeight(1)
+      }.width('100%')
+      Row({ space: 8 }) {
+        ActionButton({ label: '试听原音', variant: 'quiet', available: !this.taskLabel,
+          action: () => { this.output('source') } })
+        ActionButton({ label: '文字稿', variant: 'quiet', available: !this.taskLabel,
+          action: () => this.goToTranscript() })
+      }.width('100%')
     }.alignItems(HorizontalAlign.Start).editorPanel()
 
+    Divider().color(XuzuoTheme.outline)
     Column({ space: 8 }) {
       Row({ space: 8 }) {
         this.sectionHeading('当前选区')
@@ -384,35 +487,18 @@ export struct AudioWorkspace {
     Column({ space: 8 }) {
       this.sectionHeading('剪辑工具')
       Row({ space: 8 }) {
-        ActionButton({ label: '修剪', variant: 'primary', available: !this.taskLabel, action: () => { this.edit('retain') } })
+        ActionButton({ label: '保留选区', variant: 'primary', available: !this.taskLabel, action: () => { this.edit('retain') } })
           .layoutWeight(1)
         ActionButton({ label: '分割', available: !this.taskLabel, action: () => { this.edit('split') } }).layoutWeight(1)
-        ActionButton({ label: '删除', available: !this.taskLabel, action: () => { this.edit('remove') } }).layoutWeight(1)
+        ActionButton({ label: '删除选区', variant: 'danger', available: !this.taskLabel,
+          action: () => { this.edit('remove') } }).layoutWeight(1)
       }.width('100%')
       Row({ space: 8 }) {
-        ActionButton({ label: '保留', available: !this.taskLabel, action: () => { this.edit('retain') } }).layoutWeight(1)
         ActionButton({ label: '撤销', available: !this.taskLabel && this.canUndo(), action: () => { this.edit('undo') } })
           .layoutWeight(1)
-        ActionButton({ label: this.showTransport ? '收起试听' : '试听', available: !this.taskLabel,
-          action: () => { this.showTransport = !this.showTransport } }).layoutWeight(1)
+        ActionButton({ label: '重做', available: !this.taskLabel && this.canRedo(),
+          action: () => { this.edit('redo') } }).layoutWeight(1)
       }.width('100%')
-      if (this.canRedo()) {
-        ActionButton({ label: '重做', available: !this.taskLabel, action: () => { this.edit('redo') } })
-      }
-      if (this.showTransport) {
-        Row({ space: 8 }) {
-          ActionButton({ label: '试听原音', available: !this.taskLabel, action: () => { this.output('source') } })
-            .layoutWeight(1)
-          ActionButton({ label: '试听选区', available: !this.taskLabel, action: () => { this.output('selection') } })
-            .layoutWeight(1)
-        }.width('100%')
-        Row({ space: 8 }) {
-          ActionButton({ label: '试听剪后', available: !this.taskLabel, action: () => { this.output('preview') } })
-            .layoutWeight(1)
-          ActionButton({ label: '停止', available: !this.taskLabel, action: () => { this.stopPlayback() } })
-            .layoutWeight(1)
-        }.width('100%')
-      }
     }.alignItems(HorizontalAlign.Start).editorPanel()
 
     Column({ space: 8 }) {
@@ -461,9 +547,14 @@ export struct AudioWorkspace {
           ActionButton({ label: '选择音频文件', variant: 'primary', available: !this.taskLabel,
             action: () => { this.choose() } })
         }
+        if (this.project && !this.importOnly) {
+          ActionButton({ label: '文字稿', variant: 'quiet', available: !this.taskLabel,
+            action: () => this.openTranscript() })
+        }
       }
       if (this.taskLabel) {
-        TaskProgress({ label: this.taskLabel })
+        TaskProgress({ label: this.renderCancelled ? '正在取消' : this.taskLabel,
+          canCancel: this.canCancelRender && !this.renderCancelled, cancel: () => { this.renderCancelled = true } })
       }
       if (this.feedback) {
         StatusChip({ label: this.feedback })

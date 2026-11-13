@@ -1,0 +1,20 @@
+Clean source: 1a08aee plus the entry/ and tests/ changes of this review commit
+DevEco SDK 26 Release assembleHap; unsigned clean archive and signed workspace build
+install completed in 0s 167ms
+> hvigor Finished :entry:default@CompileArkTS... after 16 s 66 ms
+> hvigor BUILD SUCCESSFUL in 41 s 36 ms
+34 tasks in total: 34 executed, 0 up-to-date
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 311.046
+> hvigor Finished :entry:default@CompileArkTS... after 12 s 402 ms
+> hvigor BUILD SUCCESSFUL in 34 s 395 ms
+MIA-AL00 API 26, 1224 x 2776 px, ratio 3.375 (362.7vp)
+Waveform: 0.000–1.020 s after Zoom In; 0.510–1.530 s after Right
+Manual sentence QA-sentence-A: 100–350 ms; located fields 0.1 and 0.35 s; reverse location selected matching sentence
+Legacy cue 0–1500 ms marked pending review; VTT blocked; reviewed and saved; force-stop and restart; VTT exported

@@ -1,0 +1,40 @@
+Source baseline: b24e08402378580681c8cffab6df06b3c5cce516
+SDK 26 / DevEco Hvigor 6.26.8 / Release assembleHap
+Baseline workspace build
+> hvigor UP-TO-DATE :entry:default@CompileArkTS...
+> hvigor BUILD SUCCESSFUL in 9 s 428 ms
+Baseline Git archive after ohpm install --all (unsigned)
+> hvigor Finished :entry:default@CompileArkTS... after 12 s 183 ms
+> hvigor BUILD SUCCESSFUL in 26 s 954 ms
+Audit branch build
+> hvigor Finished :entry:default@CompileArkTS... after 9 s 211 ms
+> hvigor BUILD SUCCESSFUL in 25 s 441 ms
+Baseline unit summary
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 251.9627
+Audit branch unit summary
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 271.47
+MIA-AL00 API 26 native capability probe (instance creation and fixture read)
+11-14 01:27:44.865 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: WAV: audio/raw 16000 Hz 1 ch, first buffer 4096 bytes, PTS 0 us
+11-14 01:27:44.872 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: Decoder audio/mp4a-latm: created
+11-14 01:27:44.878 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: Encoder audio/mp4a-latm: created
+11-14 01:27:44.884 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: Encoder audio/mpeg: created
+11-14 01:27:44.889 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: MP4 muxer: created
+11-14 01:27:44.899 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: WAV: audio/raw 48000 Hz 2 ch, first buffer 4096 bytes, PTS 0 us
+11-14 01:27:44.900 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: Decoder audio/mp4a-latm: created
+11-14 01:27:44.901 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: Encoder audio/mp4a-latm: created
+11-14 01:27:44.902 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: Encoder audio/mpeg: created
+11-14 01:27:44.903 21331 21331 I A00000/com.hhyxx.voxcarve/VoxCarveNative: MP4 muxer: created

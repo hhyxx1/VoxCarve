@@ -9,7 +9,7 @@ registerHooks({
     return { format: 'module', source: stripTypeScriptTypes(readFileSync(new URL(url), 'utf8')), shortCircuit: true };
   }
 });
-const { readPcmWav, samplePeaks, makeWavHeader } =
+const { readPcmWav, samplePeaks, sampleChannelPeaks, makeWavHeader } =
   await import('../entry/src/main/ets/domain/PcmWav.ets');
 const fixtures = new URL('../entry/src/main/resources/rawfile/', import.meta.url);
 
@@ -72,4 +72,21 @@ test('cancelled PCM analysis discards candidates and stops reading', async () =>
     if (reads === 2) throw new Error('TASK_CANCELLED');
   }), /TASK_CANCELLED/);
   assert.equal(reads, 2);
+});
+
+test('zoom reads only the requested real PCM frames and preserves channels', async () => {
+  const data = fixture('stereo-48k.wav');
+  const track = await readPcmWav(reader(data), data.length);
+  const ranges = [];
+  const read = async (offset, length) => {
+    ranges.push([offset, length]);
+    return reader(data)(offset, length);
+  };
+  const lanes = await sampleChannelPeaks(read, track, 4, 24000, 48000);
+  assert.equal(lanes.length, 2);
+  assert.deepEqual(lanes[0], Array(4).fill({ min: 0, max: 0 }));
+  assert.deepEqual(lanes[1], lanes[0]);
+  assert.equal(ranges[0][0], track.dataOffset + 24000 * track.blockAlign);
+  assert.equal(ranges.at(-1)[0] + ranges.at(-1)[1], track.dataOffset + 48000 * track.blockAlign);
+  await assert.rejects(sampleChannelPeaks(read, track, 4, 48000, 48000), /INVALID_PEAK_RANGE/);
 });

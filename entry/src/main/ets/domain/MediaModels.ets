@@ -55,6 +55,7 @@ export interface RenderSequence {
 export interface CaptionCue {
   readonly id: string;
   readonly transcriptSegmentId?: string;
+  readonly timelineKey?: string;
   readonly outputStartUs: number;
   readonly outputEndUs: number;
   readonly text: string;

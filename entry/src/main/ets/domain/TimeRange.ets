@@ -1,9 +1,44 @@
-import type { CaptionCue, RenderSequence } from './MediaModels';
+import type { CaptionCue, RenderSequence, TranscriptSegment } from './MediaModels';
 import { frameToTimeUs, timeUsToFrame } from './EditGraph';
 
 export interface TimeRange {
   readonly startUs: number;
   readonly endUs: number;
+}
+
+export function transcriptAtRange(segments: TranscriptSegment[], range: TimeRange): TranscriptSegment | undefined {
+  let best: TranscriptSegment | undefined;
+  let longest = 0;
+  for (const segment of segments) {
+    if (segment.verified && segment.sourceStartUs !== undefined && segment.sourceEndUs !== undefined) {
+      const overlap = Math.min(range.endUs, segment.sourceEndUs) - Math.max(range.startUs, segment.sourceStartUs);
+      if (overlap > longest) {
+        best = segment;
+        longest = overlap;
+      }
+    }
+  }
+  return best;
+}
+
+export function captionTimelineKey(sequence: RenderSequence): string {
+  const boundaries: number[] = [];
+  for (const segment of sequence.segments) {
+    const last = boundaries.length - 1;
+    if (last >= 0 && boundaries[last] === segment.sourceStartFrame) {
+      boundaries[last] = segment.sourceEndFrame;
+    } else {
+      boundaries.push(segment.sourceStartFrame, segment.sourceEndFrame);
+    }
+  }
+  return sequence.sampleRate + ':' + boundaries.join(',');
+}
+
+export function verifyCaptionTimeline(cues: CaptionCue[], sequence: RenderSequence): void {
+  const key = captionTimelineKey(sequence);
+  if (cues.some((cue: CaptionCue): boolean => cue.timelineKey !== key)) {
+    throw new Error('CAPTION_TIMELINE_CHANGED');
+  }
 }
 
 export function parseTimeRange(start: string, end: string, durationUs: number): TimeRange {

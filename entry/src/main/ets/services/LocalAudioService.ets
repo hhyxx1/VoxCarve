@@ -49,6 +49,15 @@ export class LocalAudioService {
     }
   }
 
+  async waveformWindow(id: number, track: PcmWavTrack, start: number, end: number): Promise<PcmPeak[][]> {
+    const input = await fileIo.open(this.assetPath(id), fileIo.OpenMode.READ_ONLY);
+    try {
+      return await sampleChannelPeaks(this.reader(input.fd), track, 256, start, end);
+    } finally {
+      await fileIo.close(input);
+    }
+  }
+
   async quietRanges(id: number, track: PcmWavTrack, minimumMs: number,
     checkpoint: () => void, thresholdDb: number): Promise<PcmFrameRange[]> {
     const file = await fileIo.open(this.assetPath(id), fileIo.OpenMode.READ_ONLY);
@@ -262,7 +271,8 @@ export class LocalAudioService {
     return targets[0];
   }
 
-  async saveCaptionText(id: number, content: string, format: 'srt' | 'vtt' = 'srt'): Promise<boolean> {
+  async saveCaptionText(id: number, content: string, format: 'srt' | 'vtt' = 'srt',
+    verify?: () => Promise<void>): Promise<boolean> {
     if (!content || /[\uD800-\uDFFF]/u.test(content)) {
       throw new Error('INVALID_SUBTITLE_TEXT');
     }
@@ -272,6 +282,7 @@ export class LocalAudioService {
     if (!uri) {
       return false;
     }
+    await verify?.();
     const target = await fileIo.open(uri, fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
     try {
       await this.writeBlock(target.fd, buffer);
