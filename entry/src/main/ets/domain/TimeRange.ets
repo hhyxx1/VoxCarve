@@ -40,14 +40,22 @@ export function mapSourceRange(range: TimeRange, sequence: RenderSequence): Time
   return { startUs: frameToTimeUs(first, sequence.sampleRate), endUs: frameToTimeUs(last, sequence.sampleRate) };
 }
 
-function srtTime(milliseconds: number): string {
+function subtitleTime(milliseconds: number, separator: string): string {
   const hours = Math.floor(milliseconds / 3600000).toString().padStart(2, '0');
   const minutes = (Math.floor(milliseconds / 60000) % 60).toString().padStart(2, '0');
   const seconds = (Math.floor(milliseconds / 1000) % 60).toString().padStart(2, '0');
-  return hours + ':' + minutes + ':' + seconds + ',' + (milliseconds % 1000).toString().padStart(3, '0');
+  return hours + ':' + minutes + ':' + seconds + separator + (milliseconds % 1000).toString().padStart(3, '0');
 }
 
 export function encodeSrt(cues: CaptionCue[], durationUs: number): string {
+  return encodeCaptions(cues, durationUs, false);
+}
+
+export function encodeVtt(cues: CaptionCue[], durationUs: number): string {
+  return encodeCaptions(cues, durationUs, true);
+}
+
+function encodeCaptions(cues: CaptionCue[], durationUs: number, webVtt: boolean): string {
   if (!cues.length) {
     throw new Error('INVALID_CAPTIONS');
   }
@@ -57,14 +65,19 @@ export function encodeSrt(cues: CaptionCue[], durationUs: number): string {
   for (const cue of sorted) {
     const startMs = Math.round(cue.outputStartUs / 1000);
     const endMs = Math.round(cue.outputEndUs / 1000);
+    const newline = webVtt ? '\n' : '\r\n';
+    const separator = webVtt ? '.' : ',';
     const text = cue.text.trim().replace(/\r\n?|\n/g, '\n').split('\n')
-      .filter((line: string): boolean => !!line.trim()).join('\r\n');
+      .filter((line: string): boolean => !!line.trim()).join(newline);
     if (!Number.isSafeInteger(cue.outputStartUs) || !Number.isSafeInteger(cue.outputEndUs) ||
       cue.outputStartUs < previousEnd || cue.outputEndUs > durationUs || startMs >= endMs || !text) {
       throw new Error('INVALID_CAPTIONS');
     }
-    blocks.push((blocks.length + 1) + '\r\n' + srtTime(startMs) + ' --> ' + srtTime(endMs) + '\r\n' + text + '\r\n\r\n');
+    const payload = webVtt ? text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : text;
+    const index = webVtt ? '' : (blocks.length + 1) + newline;
+    blocks.push(index + subtitleTime(startMs, separator) + ' --> ' + subtitleTime(endMs, separator) +
+      newline + payload + newline + newline);
     previousEnd = cue.outputEndUs;
   }
-  return blocks.join('');
+  return (webVtt ? 'WEBVTT\n\n' : '') + blocks.join('');
 }

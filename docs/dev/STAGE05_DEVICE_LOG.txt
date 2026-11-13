@@ -1,0 +1,11 @@
+> hvigor [32mFinished :entry:default@SignHap... after 3 s 135 ms [39m
+> hvigor [32mBUILD SUCCESSFUL in 18 s 899 ms [39m
+[Info]App install path:C:\Project\VoxCarve\entry/build/default/outputs/default/entry-default-signed.hap msg:install bundle successfully.
+AppMod finish
+force stop process successfully.
+start ability successfully.
+Observed '任务已取消' [67,1265][353,1356]
+Observed '识别提前结束，已载入部分草稿。请试听校对并填写源音时间。' [67,2050][1143,2192]
+Observed '你好欢迎使用声检。' [67,589][1157,751]
+Mate 90 Pro API 26: 已导出 VTT，55 bytes
+SHA-256 49346ce1f36428e6d485b59e2ca50d989ded1b4f6e26fb6c066b0af47617b1d7

@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { EditGraph, frameToTimeUs } from '../domain/EditGraph';
 import type { CaptionCue, EditDecision, MediaProject, TranscriptSegment } from '../domain/MediaModels';
 import type { PcmFrameRange, PcmWavTrack } from '../domain/PcmWav';
-import { encodeSrt, mapSourceRange, parseTimeRange, TimeRange } from '../domain/TimeRange';
+import { encodeSrt, encodeVtt, mapSourceRange, parseTimeRange, TimeRange } from '../domain/TimeRange';
 import type { ProjectRepository } from '../repository/ProjectRepository';
 import { LocalAudioService } from '../services/LocalAudioService';
 import { VoxRoute } from '../viewmodel/WorkspaceState';
@@ -25,6 +25,9 @@ export struct ProjectToolPage {
   @State private captions: CaptionCue[] = [];
   @State private pauses: PcmFrameRange[] = [];
   @State private minimum: string = '300';
+  @State private threshold: string = '-45';
+  @State private cancellable: boolean = false;
+  @State private cancelling: boolean = false;
   @State private scanned: boolean = false;
   @State private busyLabel: string = '';
   @State private issue: string = '';
@@ -71,14 +74,26 @@ export struct ProjectToolPage {
     try {
       await operation();
     } catch (error) {
-      this.issue = (error as Error).message || '操作失败，请重试。';
+      if ((error as Error).message === 'TASK_CANCELLED') {
+        this.message = '任务已取消';
+      } else {
+        this.issue = (error as Error).message || '操作失败，请重试。';
+      }
     } finally {
+      this.cancellable = false;
+      this.cancelling = false;
       this.busyLabel = '';
       if (this.mounted) {
         this.guardBack(this.editing, false);
       } else {
         await this.stop();
       }
+    }
+  }
+
+  private checkpoint(): void {
+    if (this.cancelling || !this.mounted) {
+      throw new Error('TASK_CANCELLED');
     }
   }
 
@@ -216,7 +231,7 @@ export struct ProjectToolPage {
     this.begin('', segment.text, '', range.startUs, range.endUs, segment.id);
   }
 
-  private async exportCaptions(): Promise<void> {
+  private async exportCaptions(format: 'srt' | 'vtt'): Promise<void> {
     const project = this.project;
     const service = this.service;
     if (!project || !service) {
@@ -224,16 +239,53 @@ export struct ProjectToolPage {
     }
     let content: string;
     try {
-      content = encodeSrt(this.captions, this.duration(true));
+      content = format === 'vtt' ? encodeVtt(this.captions, this.duration(true)) :
+        encodeSrt(this.captions, this.duration(true));
     } catch (_) {
       this.issue = '字幕有重叠、过短或超出剪后时长。请校对后重试。';
       return;
     }
-    await this.run('保存 SRT', async () => {
+    const label = format.toUpperCase();
+    await this.run('保存 ' + label, async () => {
       try {
-        this.message = await service.saveCaptionText(project.id, content) ? '已导出 SRT' : '已取消保存';
+        this.message = await service.saveCaptionText(project.id, content, format) ? '已导出 ' + label : '已取消保存';
       } catch (_) {
         throw new Error('无法保存字幕，请重试。');
+      }
+    });
+  }
+
+  private speechSupported(): boolean {
+    const track = this.track;
+    return !!track && track.sampleRate === 16000 && track.channels === 1 &&
+      track.frameCount <= 16000 * 60 && canIUse('SystemCapability.AI.SpeechRecognizer');
+  }
+
+  private async transcribe(): Promise<void> {
+    const project = this.project;
+    const track = this.track;
+    const service = this.service;
+    if (!project || !track || !service || !this.speechSupported()) {
+      return;
+    }
+    await this.run('本地识别普通话', async () => {
+      this.cancellable = true;
+      try {
+        const result = await service.transcribe(project.id, track, () => this.checkpoint());
+        const text = result.text;
+        this.checkpoint();
+        this.cancellable = false;
+        if (text) {
+          this.begin('', text.slice(0, 500), '');
+          this.message = !result.inputComplete ? '识别提前结束，已载入部分草稿。请试听校对并填写源音时间。' :
+            text.length > 500 ? '已载入前 500 字，请校对并填写源音时间。' :
+              '识别草稿待校对，请手工填写源音时间。';
+        } else {
+          this.message = '没有识别到普通话，请手动录入。';
+        }
+      } catch (error) {
+        const code = (error as Error).message;
+        throw new Error(code === 'TASK_CANCELLED' ? code : '离线转写失败，可手动录入（' + code + '）。');
       }
     });
   }
@@ -243,6 +295,7 @@ export struct ProjectToolPage {
     const track = this.track;
     const service = this.service;
     const minimum = Number(this.minimum);
+    const threshold = Number(this.threshold);
     if (!project || !track || !service) {
       return;
     }
@@ -250,12 +303,21 @@ export struct ProjectToolPage {
       this.issue = '停顿长度请输入 100–10000 毫秒之间的整数。';
       return;
     }
+    if (!Number.isInteger(threshold) || threshold < -80 || threshold > -20) {
+      this.issue = '门限请输入 −80 到 −20 dBFS 之间的整数。';
+      return;
+    }
     await this.run('分析 PCM 停顿', async () => {
+      this.cancellable = true;
+      this.scanned = false;
+      this.pauses = [];
       try {
-        this.pauses = await service.quietRanges(project.id, track, minimum);
+        const results = await service.quietRanges(project.id, track, minimum, () => this.checkpoint(), threshold);
+        this.checkpoint();
+        this.pauses = results;
         this.scanned = true;
-      } catch (_) {
-        throw new Error('无法分析音频，请重试。');
+      } catch (error) {
+        throw new Error((error as Error).message === 'TASK_CANCELLED' ? 'TASK_CANCELLED' : '无法分析音频，请重试。');
       }
     });
   }
@@ -295,8 +357,11 @@ export struct ProjectToolPage {
     await this.run(save ? '渲染 WAV' : '准备试听', async () => {
       await this.stop();
       try {
-        const path = await service.render(project.id, track, graph);
+        this.cancellable = true;
+        const path = await service.render(project.id, track, graph, () => this.checkpoint());
         this.temporary = path;
+        this.checkpoint();
+        this.cancellable = false;
         if (save) {
           const bytes = await service.save(path, project.id, name.toLowerCase().endsWith('.wav') ? name : name + '.wav');
           this.message = bytes === undefined ? '已取消保存' : '已导出 WAV · ' + bytes + ' 字节';
@@ -310,7 +375,9 @@ export struct ProjectToolPage {
         }
       } catch (error) {
         await this.stop();
-        throw new Error((error as Error).message === 'EMPTY_RENDER' ? '没有可输出的音频帧，请先调整剪辑。' :
+        const code = (error as Error).message;
+        throw new Error(code === 'TASK_CANCELLED' ? code :
+          code === 'EMPTY_RENDER' ? '没有可输出的音频帧，请先调整剪辑。' :
           '音频处理失败，请重试。');
       }
     });
@@ -379,6 +446,12 @@ export struct ProjectToolPage {
     } else {
       ActionButton({ label: '新增句段', variant: 'primary', available: !this.busyLabel,
         action: () => this.begin('', '', '') })
+      if (this.speechSupported()) {
+        ActionButton({ label: '离线识别普通话', available: !this.busyLabel, action: () => { this.transcribe() } })
+      } else if (this.track) {
+        Text('离线识别需设备支持，且音轨为不超过 60 秒的 16 kHz 单声道 PCM WAV。')
+          .fontSize(14).fontColor(XuzuoTheme.textSecondary)
+      }
       if (this.transcript.length === 0) {
         EmptyPanel({ title: '暂无文字稿', detail: '可先录入文字，导入音频后再校准时间。' })
       }
@@ -410,7 +483,10 @@ export struct ProjectToolPage {
       ActionButton({ label: '新增字幕', variant: 'primary', available: this.duration(true) > 0 && !this.busyLabel,
         action: () => this.begin('', '', '', 0, this.duration(true)) })
       if (this.captions.length > 0) {
-        ActionButton({ label: '导出 SRT', available: !this.busyLabel, action: () => { this.exportCaptions() } })
+        Row({ space: 8 }) {
+          ActionButton({ label: '导出 SRT', available: !this.busyLabel, action: () => { this.exportCaptions('srt') } })
+          ActionButton({ label: '导出 VTT', available: !this.busyLabel, action: () => { this.exportCaptions('vtt') } })
+        }
       } else {
         EmptyPanel({ title: '暂无字幕', detail: '可以手动输入，也可从已校准的文字稿生成草稿。' })
       }
@@ -427,10 +503,12 @@ export struct ProjectToolPage {
 
   @Builder
   silenceContent() {
-    Text('分析源音频。每 20 毫秒计算各声道 RMS，所有声道低于或等于 −45 dBFS 才计为停顿。')
+    Text('每 20 毫秒计算各声道 RMS。所有声道低于或等于门限才计为停顿。')
       .fontSize(15).fontColor(XuzuoTheme.textSecondary)
     TextFieldRow({ label: '最短停顿（毫秒）', fieldValue: this.minimum,
       update: (value: string) => { this.minimum = value; this.scanned = false; this.pauses = [] } })
+    TextFieldRow({ label: '停顿门限（dBFS）', fieldValue: this.threshold,
+      update: (value: string) => { this.threshold = value; this.scanned = false; this.pauses = [] } })
     ActionButton({ label: '查找停顿', variant: 'primary', available: !this.busyLabel, action: () => { this.scan() } })
     if (this.scanned && this.pauses.length === 0) {
       StatusChip({ label: '没有符合门限的停顿' })
@@ -486,6 +564,8 @@ export struct ProjectToolPage {
               action: () => { this.run('停止播放', async () => { if (await this.stop()) { this.message = '已停止' } }) } })
           } else if (this.route === VoxRoute.Export) {
             Text('WAV · 16 位 PCM · 保留源采样率和声道').fontSize(15).fontColor(XuzuoTheme.textSecondary)
+            Text('MP3 编码和 MP4 音画同步尚未通过输出验证。可保存 WAV。')
+              .fontSize(14).fontColor(XuzuoTheme.textSecondary)
             TextFieldRow({ label: '导出文件名', fieldValue: this.filename,
               update: (value: string) => { this.filename = value } })
             ActionButton({ label: '保存 WAV', variant: 'primary', available: !this.busyLabel,
@@ -494,7 +574,8 @@ export struct ProjectToolPage {
         }
       }
       if (this.busyLabel) {
-        TaskProgress({ label: this.busyLabel })
+        TaskProgress({ label: this.cancelling ? '正在取消' : this.busyLabel,
+          canCancel: this.cancellable && !this.cancelling, cancel: () => { this.cancelling = true } })
       }
       if (this.message) {
         StatusChip({ label: this.message })

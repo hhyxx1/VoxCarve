@@ -3,6 +3,7 @@ import { fileIo, picker } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
 import { EditGraph } from '../domain/EditGraph';
 import type { RenderSegment } from '../domain/MediaModels';
+import { recognizeMandarin, OfflineSpeechResult } from './OfflineSpeechService';
 import {
   detectQuietRanges, makeWavHeader, readPcmWav, samplePeaks, PcmWavTrack, PcmPeak, ReadBytes, PcmFrameRange
 } from '../domain/PcmWav';
@@ -46,10 +47,24 @@ export class LocalAudioService {
     }
   }
 
-  async quietRanges(id: number, track: PcmWavTrack, minimumMs: number): Promise<PcmFrameRange[]> {
+  async quietRanges(id: number, track: PcmWavTrack, minimumMs: number,
+    checkpoint: () => void, thresholdDb: number): Promise<PcmFrameRange[]> {
     const file = await fileIo.open(this.assetPath(id), fileIo.OpenMode.READ_ONLY);
     try {
-      return await detectQuietRanges(this.reader(file.fd), track, minimumMs);
+      return await detectQuietRanges(this.reader(file.fd), track, minimumMs, checkpoint, thresholdDb);
+    } finally {
+      await fileIo.close(file);
+    }
+  }
+
+  async transcribe(id: number, track: PcmWavTrack, checkpoint: () => void): Promise<OfflineSpeechResult> {
+    if (track.channels !== 1 || track.sampleRate !== 16000 || track.frameCount > 16000 * 60) {
+      throw new Error('SPEECH_FORMAT');
+    }
+    const file = await fileIo.open(this.assetPath(id), fileIo.OpenMode.READ_ONLY);
+    try {
+      return await recognizeMandarin(this.reader(file.fd), track.dataOffset,
+        track.frameCount * track.blockAlign, checkpoint);
     } finally {
       await fileIo.close(file);
     }
@@ -125,7 +140,8 @@ export class LocalAudioService {
     }
   }
 
-  async render(projectId: number, track: PcmWavTrack, graph: EditGraph): Promise<string> {
+  async render(projectId: number, track: PcmWavTrack, graph: EditGraph, checkpoint?: () => void): Promise<string> {
+    checkpoint?.();
     const sequence = graph.render(projectId.toString());
     const header = makeWavHeader(track.sampleRate, track.channels, sequence.totalFrames);
     const destination = this.context.cacheDir + '/voxcarve-render-' + projectId + '-' +
@@ -138,20 +154,21 @@ export class LocalAudioService {
         await this.writeBlock(output.fd, header);
         const read = this.reader(input.fd);
         for (const segment of sequence.segments) {
-          await this.copySegment(read, output.fd, track, segment);
+          await this.copySegment(read, output.fd, track, segment, checkpoint);
         }
         const expected = header.byteLength + sequence.totalFrames * track.blockAlign;
         if ((await fileIo.stat(output.fd)).size !== expected) {
           throw new Error('INCOMPLETE_RENDER');
         }
         await fileIo.fsync(output.fd);
+        checkpoint?.();
       } finally {
         await fileIo.close(output);
       }
       return destination;
-    } catch (_) {
+    } catch (error) {
       await this.removeTemporary(destination);
-      throw new Error('RENDER_FAILED');
+      throw new Error((error as Error).message === 'TASK_CANCELLED' ? 'TASK_CANCELLED' : 'RENDER_FAILED');
     } finally {
       await fileIo.close(input);
     }
@@ -168,10 +185,12 @@ export class LocalAudioService {
     }
   }
 
-  private async copySegment(read: ReadBytes, fd: number, track: PcmWavTrack, segment: RenderSegment): Promise<void> {
+  private async copySegment(read: ReadBytes, fd: number, track: PcmWavTrack, segment: RenderSegment,
+    checkpoint?: () => void): Promise<void> {
     let offset = track.dataOffset + segment.sourceStartFrame * track.blockAlign;
     const end = track.dataOffset + segment.sourceEndFrame * track.blockAlign;
     while (offset < end) {
+      checkpoint?.();
       const length = Math.min(262144, end - offset);
       const block = await read(offset, length);
       if (block.byteLength !== length) {
@@ -189,8 +208,8 @@ export class LocalAudioService {
     return targets[0];
   }
 
-  async saveCaptionText(id: number, content: string): Promise<boolean> {
-    const uri = await this.chooseSaveUri('voxcarve-captions-' + id + '.srt');
+  async saveCaptionText(id: number, content: string, format: 'srt' | 'vtt' = 'srt'): Promise<boolean> {
+    const uri = await this.chooseSaveUri('voxcarve-captions-' + id + '.' + format);
     if (!uri) {
       return false;
     }

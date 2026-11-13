@@ -112,3 +112,11 @@ test('SRT sorts captions, rounds to output milliseconds, and rejects ambiguous o
   assert.throws(() => encodeSrt([first, { ...second, outputStartUs: 199999 }], 450000), /INVALID_CAPTIONS/);
   assert.throws(() => encodeSrt([{ ...second, outputEndUs: 450001 }], 450000), /INVALID_CAPTIONS/);
 });
+
+test('WebVTT emits sorted plain-text cues and rejects overlaps', async () => {
+  const { encodeVtt } = await import(domain + 'TimeRange.ets');
+  const a = { id: 'a', outputStartUs: 0, outputEndUs: 200000, text: '甲 & <乙> -->' };
+  const b = { id: 'b', outputStartUs: 200000, outputEndUs: 500000, text: '第二句' };
+  assert.equal(encodeVtt([b, a], 500000), 'WEBVTT\n\n00:00:00.000 --> 00:00:00.200\n甲 &amp; &lt;乙&gt; --&gt;\n\n00:00:00.200 --> 00:00:00.500\n第二句\n\n');
+  assert.throws(() => encodeVtt([a, { ...b, outputStartUs: 100000 }], 500000), /INVALID_CAPTIONS/);
+});

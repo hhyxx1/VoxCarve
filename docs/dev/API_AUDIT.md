@@ -24,3 +24,7 @@
 
 - `@kit.CoreFileKit` 的 Picker 与 FileIO。SDK 26 的 `@ohos.file.fs.d.ts` 声明 `copyFile`、`lseek`、`read`、`write`、`fsync`、`rename` 和 `unlink`。本地 URI 经只读 FD 复制到沙箱，分析通过后重命名。输出先渲染临时文件，再写入保存面板授权的 URI 并核对字节数。[文件管理参考](https://developer.huawei.com/consumer/en/doc/harmonyos-references/js-apis-file-fs/) · [选择用户文件](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/select-user-file/)
 - `media` 来自 `@kit.MediaKit`，对应 `@ohos.multimedia.media.d.ts`。AVPlayer 使用本地 `fdSrc`，依据状态事件调用 prepare 和 play，切换时 release 后关闭 FD。模拟器已验证原音和剪后试听到达完成状态。[AVPlayer 参考](https://developer.huawei.com/consumer/en/doc/harmonyos-references/arkts-apis-media-avplayer/) · [本地音频播放指南](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/using-avplayer-for-playback/)
+## 阶段 05
+
+- Core Speech Kit 文件模式已真机收到普通话草稿。SDK 26 声明约束为 PCM16、16 kHz、单声道，writeAudio 每包 640 或 1280 字节，短语音最多 60 秒。本实现监听实际完成状态，提前结束时提示部分草稿。人工核对与时间绑定继续可用。[文件语音指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/speechrecognizer-guide/)
+- SRT 与 WebVTT 共用剪后时间验证，FileIO 保存到系统授权 URI。WebVTT 实际文件已核对 UTF-8 和时码。[集成报告](INTEGRATION_REPORT.md)

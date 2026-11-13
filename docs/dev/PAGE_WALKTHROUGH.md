@@ -22,7 +22,8 @@ HarmonyOS API 26，原生 ArkUI。阶段 03 的单轨 PCM16 WAV 项目升级至 
 - [SDK 26 构建](STAGE04_BUILD_LOG.txt) · [12 项主机测试](STAGE04_DOMAIN_LOG.txt) · [手机模拟器日志](STAGE04_DEVICE_LOG.txt)。
 - 真实 PCM 工程恢复、人工文字稿及离开确认、源音定位、字幕重映射和保存、停顿检测、选区及剪后试听、恢复历史版本、SRT 写盘、WAV 实际写盘及取消均已在 Mate 90 Pro API 26 模拟器走查。独立导出页的立体声 WAV 与阶段 03 验收文件 SHA-256 一致，深色外观已验证重启恢复。样本字幕为人工输入的测试数据。[实际 SRT](exports/stage04-sample.srt)
 - 运行截图存于工作区 `.artifacts/stage02`，文件名为 stage04-transcript.png、stage04-captions.png、stage04-silence.png、stage04-history.png。
-- 真机运行 BLOCKED。连接的 API 26 MIA-AL00 拒绝未签名 HAP，错误 9568320。360/390/430vp 逐宽、大字体编辑、横屏、安全区专项、屏幕阅读器、权限拒绝和其他分支状态尚未逐项验收。阶段 02 已有平板侧栏和浅/深主题基线。
+- MIA-AL00（HarmonyOS 7.0.0.109，API 26）安装签名 HAP 并启动。真机通过立体声样本的 Picker 导入、RMS 停顿定位、裁切、AVPlayer 试听完成、WAV 导出及重启恢复。剪后 1.500 秒、288,044 字节，SHA-256 为 `299e06022d31c9740d1c90b0a8f18f16efcd74f5c3255d60fa127b8f63c0829d`，与模拟器样本一致。文字稿、字幕等其他页面仍以模拟器记录为准。
+- 360/390/430vp 逐宽、大字体编辑、横屏、安全区专项、屏幕阅读器、权限拒绝和其他分支状态尚未逐项验收。阶段 02 已有平板侧栏和浅/深主题基线。
 
 ## 规格差异与后续
 

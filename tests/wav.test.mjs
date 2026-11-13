@@ -58,3 +58,18 @@ test('silence candidates use PCM samples and respect the minimum duration', asyn
     assert.deepEqual(await detectQuietRanges(reader(data), track, 600), []);
   }
 });
+
+test('cancelled PCM analysis discards candidates and stops reading', async () => {
+  const { detectQuietRanges } = await import('../entry/src/main/ets/domain/PcmWav.ets');
+  const data = fixture('stereo-48k.wav');
+  const read = reader(data);
+  const track = await readPcmWav(read, data.length);
+  let reads = 0;
+  await assert.rejects(detectQuietRanges(async (offset, length) => {
+    reads++;
+    return read(offset, length);
+  }, track, 300, () => {
+    if (reads === 2) throw new Error('TASK_CANCELLED');
+  }), /TASK_CANCELLED/);
+  assert.equal(reads, 2);
+});

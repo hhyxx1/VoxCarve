@@ -139,15 +139,18 @@ export interface PcmFrameRange {
   readonly endFrame: number;
 }
 
-export async function detectQuietRanges(read: ReadBytes, track: PcmWavTrack, minimumMs: number): Promise<PcmFrameRange[]> {
+export async function detectQuietRanges(read: ReadBytes, track: PcmWavTrack, minimumMs: number,
+  checkpoint?: () => void, thresholdDb: number = -45): Promise<PcmFrameRange[]> {
   const windowFrames = Math.round(track.sampleRate / 50);
   const minimumFrames = Math.ceil(track.sampleRate * minimumMs / 1000);
-  const thresholdSquared = Math.pow(32768 * Math.pow(10, -45 / 20), 2);
+  const thresholdSquared = Math.pow(32768 * Math.pow(10, thresholdDb / 20), 2);
   const ranges: PcmFrameRange[] = [];
   let quietStart = -1;
   for (let first = 0; first < track.frameCount;) {
+    checkpoint?.();
     const frameCount = Math.min(windowFrames * 32, track.frameCount - first);
     const block = await readExact(read, track.dataOffset + first * track.blockAlign, frameCount * track.blockAlign);
+    checkpoint?.();
     for (let frame = 0; frame < frameCount; frame += windowFrames) {
       const samples = Math.min(windowFrames, frameCount - frame);
       let maxPower = 0;
